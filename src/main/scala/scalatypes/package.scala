@@ -2,8 +2,8 @@
 package object scalatypes {
   import scala.language.higherKinds
   type Id[A] = A
-  
-  type Reader[A,B] = Kleisli[Id, A, B]
+
+  type Reader[A, B] = Kleisli[Id, A, B]
 
   type ~>[F[_], G[_]] = NaturalTransformation[F, G]
 
@@ -17,9 +17,9 @@ package object scalatypes {
       def apply[A](a: Id[A]) = a
     }
   }
-  
+
   object Reader {
-    def apply[A,B](f : A => B) : Reader[A,B] = Kleisli.kleisli[Id, A, B]( f)
+    def apply[A, B](f: A => B): Reader[A, B] = Kleisli.kleisli[Id, A, B](f)
   }
 
 } 

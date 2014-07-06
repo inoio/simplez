@@ -5,3 +5,4 @@
 .worksheet/
 target
 *~
+*.sc
