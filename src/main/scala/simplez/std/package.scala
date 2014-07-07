@@ -1,27 +1,40 @@
 package simplez
 
 package object std {
+
   object int {
-    implicit val intMonoid = new Monoid[Int] {
+    implicit val intInstances = new Monoid[Int] {
       def mzero = 0
+
       def mappend(a: Int, b: Int) = a + b
     }
   }
 
+  object string {
+    implicit val stringInstances = new Monoid[String] {
+      override def mzero: String = ""
+
+      override def mappend(a: String, b: String): String = a + b
+    }
+  }
+
   object list {
-    implicit def listMonoid[A: Monoid] = new Monoid[List[A]] with Foldable[List]{
+    implicit def listInstances[A: Monoid] = new Monoid[List[A]] with Foldable[List] {
       def mzero: List[A] = List.empty
+
       def mappend(a: List[A], b: List[A]) = a ++ b
-      def foldMap[A,B](fa: List[A])(f: A => B)(implicit F: Monoid[B]): B = {
-        fa.foldLeft(F.mzero){case (start, elem) => F.mappend(start,f(elem))}
+
+      def foldMap[A, B](fa: List[A])(f: A => B)(implicit F: Monoid[B]): B = {
+        fa.foldLeft(F.mzero) { case (start, elem) => F.mappend(start, f(elem))}
       }
     }
 
   }
 
   object option {
-    implicit def optionMonoid[A: Monoid] = new Monoid[Option[A]] {
+    implicit def optionInstances[A: Monoid] = new Monoid[Option[A]] {
       def mzero: Option[A] = None
+
       def mappend(a: Option[A], b: Option[A]): Option[A] = {
         (a, b) match {
           case (Some(a1), Some(b1)) => Some(Monoid[A].mappend(a1, b1))
@@ -36,12 +49,6 @@ package object std {
       new NaturalTransformation[Option, List] {
         def apply[A](F: Option[A]): List[A] = F.toList
       }
-
-    val x = Option(3)
-    val result: List[Int] = NaturalTransformation[Option, List].apply(x)
-
-    val L = List(Some(3), None, Some(4))
-    val z = L.map(NaturalTransformation[Option, List])
-
   }
+
 }

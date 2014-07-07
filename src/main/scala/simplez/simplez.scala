@@ -1,17 +1,16 @@
 package simplez
 
-import scala.language.higherKinds
-import scala.language.implicitConversions
+import scala.language.{higherKinds, implicitConversions}
 
 /**
- *  A Semigroup defines an associative binary function.
+ * A Semigroup defines an associative binary function.
  *
- *  {{{
+ * {{{
  *  Semigroup[Int].mappend(3,4)
- *  }}}
+ * }}}
  *
- *  @tparam A the type of the semigroup
- *  @see [[http://en.wikipedia.org/wiki/Semigroup]]
+ * @tparam A the type of the semigroup
+ * @see [[http://en.wikipedia.org/wiki/Semigroup]]
  */
 trait Semigroup[A] {
   def mappend(a: A, b: A): A
@@ -78,7 +77,7 @@ trait Monad[F[_]] extends Applicative[F] {
   def flatMap[A, B](F: F[A])(f: A => F[B]): F[B]
 
   /**
-   *  Implementation of `map` in terms of `flatMap`
+   * Implementation of `map` in terms of `flatMap`
    *
    */
   override def map[A, B](F: F[A])(f: A => B): F[B] = {
@@ -118,8 +117,9 @@ trait NaturalTransformation[-F[_], +G[_]] {
 
 object NaturalTransformation {
   def apply[F[_], G[_]](implicit NT: NaturalTransformation[F, G]): NaturalTransformation[F, G] = NT
+
   /**
-   *  defines an implicit conversion from a natural transformation to a function `F[A] => G[A]`
+   * defines an implicit conversion from a natural transformation to a function `F[A] => G[A]`
    */
   implicit def reify[F[_], G[_], A](NT: F ~> G): F[A] => G[A] = { f => NT(f) }
 }
@@ -135,7 +135,7 @@ sealed trait Free[F[_], A] {
   def map[B](f: A => B): Free[F, B] =
     flatMap(a => Return(f(a)))
 
-  def foldMap[G[_]: Monad](f: F ~> G): G[A] =
+  def foldMap[G[_] : Monad](f: F ~> G): G[A] =
     this match {
       case Return(a) => Monad[G].pure(a)
       case Bind(fx, g) =>
@@ -149,16 +149,18 @@ case class Return[F[_], A](a: A)
   extends Free[F, A]
 
 case class Bind[F[_], I, A](
-  a: F[I],
-  f: I => Free[F, A]) extends Free[F, A]
+                             a: F[I],
+                             f: I => Free[F, A]) extends Free[F, A]
 
 /**
  *
  * @see [[
- * @see [[http://ncatlab.org/nlab/show/Kleisli+category]]
+ * @ s e e[[ h t t p : / / n c a t l a b.o i m p o r t s i m p l e z.K l e i s l i._ s h o w / K l e i s l i + c a t e g o r y]]
  */
 trait Kleisli[F[_], A, B] {
-  import Kleisli._
+
+  import simplez.Kleisli._
+
   def run(a: A): F[B]
 
   def andThen[C](k: Kleisli[F, B, C])(implicit b: Monad[F]): Kleisli[F, A, C] =
@@ -190,7 +192,7 @@ trait Kleisli[F[_], A, B] {
   def flatMap[C](f: B => Kleisli[F, A, C])(implicit G: Monad[F]): Kleisli[F, A, C] = kleisli {
     (r: A) =>
       val b = this.run(r)
-      G.flatMap(b) { b: B => f(b).run(r) }
+      G.flatMap(b) { b: B => f(b).run(r)}
   }
 
   def flatMapK[C](f: B => F[C])(implicit F: Monad[F]): Kleisli[F, A, C] =
@@ -206,11 +208,13 @@ object Kleisli {
 
 trait State[S, A] {
   def run(s: S): (S, A)
+
   def map[B](f: A => B): State[S, B] = State[S, B] {
     s =>
       val (s1, a) = run(s)
       (s1, f(a))
   }
+
   def flatMap[B](f: A => State[S, B]): State[S, B] = State[S, B] {
     s =>
       val (s1, a) = run(s)
@@ -223,4 +227,99 @@ object State {
   def apply[S, A](f: S => (S, A)) = new State[S, A] {
     def run(s: S) = f(s)
   }
+}
+
+/**
+ * A Writer keeps track of information on the right hand side of its (W,A) tuple, mapping over the A and appending
+ * the W side where necessary.
+ *
+ * This implementation lacks the details and usefulness of the scalaz implementation as it omits the
+ * F[_] typeconstructor for values of W.
+ * 
+ * 
+ * {{{
+ *   def addition(x1: Int, y1: Int) = for {
+        x <- x1.set(List(s"x =  $x1"))
+        y <- y1.set(List(s"y =  $y1"))
+        result <- (x + y).set(List(s"Adding values ${x + y}"))
+      } yield result
+  
+     val Writer((w,a)) = addition(10, 20)
+ * }}}
+ *
+ * @constructor
+ * Construct a new Writer with a initial tuple (W,A).
+ *
+ * @tparam W the "log" side
+ * @tparam A the "value side"
+ */
+final case class Writer[W, A](run: (W, A)) {
+
+  /**
+   * Map over the A.
+   */
+  def map[B](f: A => B): Writer[W, B] = {
+    val (w, a) = run
+    Writer(w -> f(a))
+  }
+
+  /**
+   * flatMap concatenating the two written sides.
+   */
+  def flatMap[B](f: A => Writer[W, B])(implicit s: Semigroup[W]): Writer[W, B] = {
+    val (w, a) = run
+    val (w1, b) = f(a).run
+    Writer(s.mappend(w, w1) -> b)
+  }
+
+  /**
+   * Return the written W side.
+   */
+  def written = run._1
+
+  /**
+   * Return the value A side.
+   */
+  def value = run._2
+
+  /**
+   * map over the written side.
+   */
+  def mapWritten[W2](f: W => W2)(implicit F: Functor[Id]): Writer[W2, A] = {
+    val w2 = F.map(written)(f)
+    Writer((w2 -> value))
+  }
+
+  /**
+   * Map over the tuple (W,A) of the Writer.
+   * Strange naming - it does not map of the value A! map does that.
+   */
+  def mapValue[X, B](f: ((W, A)) => (X, B))(implicit F: Functor[Id]): Writer[X, B] =
+    Writer(F.map(run)(f))
+
+  /**
+   * Prepend a W to a writer.
+   * {{{
+   * "String" <++: writer
+   * }}}
+   */
+  def <++:(w: => W)(implicit F: Functor[Id], W: Semigroup[W]): Writer[W, A] =
+    mapWritten(W.mappend(w, _))
+
+  /**
+   * Append a W to a writer.
+   * {{{
+   * 		writer :++> "String"
+   * }}}
+   */
+  def :++>(w: => W)(implicit F: Functor[Id], W: Semigroup[W]): Writer[W, A] =
+    mapWritten(W.mappend(_, w))
+
+  /**
+   * Clear the written side with a Monoid.
+   */
+  def reset(implicit W: Monoid[W]): Writer[W, A] = {
+    Writer(W.mzero -> value)
+  }
+
 }

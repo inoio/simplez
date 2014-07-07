@@ -1,6 +1,8 @@
 
 package object simplez {
+
   import scala.language.higherKinds
+
   type Id[A] = A
 
   type Reader[A, B] = Kleisli[Id, A, B]
@@ -10,6 +12,7 @@ package object simplez {
   object id {
     implicit val idMonad = new Monad[Id] {
       def pure[A](a: A): Id[A] = a
+
       def flatMap[A, B](F: Id[A])(f: A => Id[B]): Id[B] = f(F)
     }
 
