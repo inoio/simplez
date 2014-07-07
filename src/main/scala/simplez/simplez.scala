@@ -1,4 +1,4 @@
-package scalatypes
+package simplez
 
 import scala.language.higherKinds
 import scala.language.implicitConversions
@@ -84,9 +84,9 @@ trait Monad[F[_]] extends Applicative[F] {
   override def map[A, B](F: F[A])(f: A => B): F[B] = {
     flatMap(F)(a => pure(f(a)))
   }
-  
+
   def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] = {
-    lazy val fa0 : F[A] = fa
+    lazy val fa0: F[A] = fa
     // map(fa0) is a partially applied function
     // val  m : (A => B) => F[B] = map(fa0) _
     flatMap(f)(map(fa0))
@@ -95,6 +95,14 @@ trait Monad[F[_]] extends Applicative[F] {
 
 object Monad {
   def apply[F[_]](implicit F: Monad[F]): Monad[F] = F
+}
+
+trait Foldable[F[_]] {
+  /**
+   * Map each element of the structure to a [[scalaz.Monoid]], and combine the\
+   * results.
+   */
+  def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
 }
 
 /**

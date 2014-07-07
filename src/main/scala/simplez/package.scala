@@ -1,5 +1,5 @@
 
-package object scalatypes {
+package object simplez {
   import scala.language.higherKinds
   type Id[A] = A
 

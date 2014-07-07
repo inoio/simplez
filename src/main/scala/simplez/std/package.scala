@@ -1,4 +1,4 @@
-package scalatypes
+package simplez
 
 package object std {
   object int {
@@ -9,9 +9,12 @@ package object std {
   }
 
   object list {
-    implicit def listMonoid[A: Monoid] = new Monoid[List[A]] {
+    implicit def listMonoid[A: Monoid] = new Monoid[List[A]] with Foldable[List]{
       def mzero: List[A] = List.empty
       def mappend(a: List[A], b: List[A]) = a ++ b
+      def foldMap[A,B](fa: List[A])(f: A => B)(implicit F: Monoid[B]): B = {
+        fa.foldLeft(F.mzero){case (start, elem) => F.mappend(start,f(elem))}
+      }
     }
 
   }

@@ -1,4 +1,4 @@
-name := "scalatypes"
+name := "simplez"
 
 organization := "inoio"
 
