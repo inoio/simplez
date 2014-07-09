@@ -14,7 +14,7 @@ package object syntax {
      */
     def |+|(b: A): A = mappend(b)
 
-    def mappend(b: A): A = F.mappend(self, b)
+    def mappend(b: A): A = F.append(self, b)
 
     def mzero(): A = F.mzero
   }

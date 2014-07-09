@@ -1,6 +1,6 @@
 package simplez
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.{ higherKinds, implicitConversions }
 
 /**
  * A Semigroup defines an associative binary function.
@@ -13,7 +13,7 @@ import scala.language.{higherKinds, implicitConversions}
  * @see [[http://en.wikipedia.org/wiki/Semigroup]]
  */
 trait Semigroup[A] {
-  def mappend(a: A, b: A): A
+  def append(a: A, b: A): A
 }
 
 /**
@@ -98,7 +98,7 @@ object Monad {
 
 trait Foldable[F[_]] {
   /**
-   * Map each element of the structure to a [[scalaz.Monoid]], and combine the\
+   * Map each element of the structure to a [[Monoid]], and combine the\
    * results.
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
@@ -129,13 +129,13 @@ sealed trait Free[F[_], A] {
     this match {
       case Return(a) => f(a)
       case Bind(fx, g) =>
-        Bind(fx, g andThen (_ flatMap f))
+        Bind(fx, g andThen ((free: Free[F, A]) => free flatMap f))
     }
 
   def map[B](f: A => B): Free[F, B] =
     flatMap(a => Return(f(a)))
 
-  def foldMap[G[_] : Monad](f: F ~> G): G[A] =
+  def foldMap[G[_]: Monad](f: F ~> G): G[A] =
     this match {
       case Return(a) => Monad[G].pure(a)
       case Bind(fx, g) =>
@@ -148,14 +148,11 @@ sealed trait Free[F[_], A] {
 case class Return[F[_], A](a: A)
   extends Free[F, A]
 
-case class Bind[F[_], I, A](
-                             a: F[I],
-                             f: I => Free[F, A]) extends Free[F, A]
+case class Bind[F[_], I, A](a: F[I],
+  f: I => Free[F, A]) extends Free[F, A]
 
 /**
  *
- * @see [[
- * @ s e e[[ h t t p : / / n c a t l a b.o i m p o r t s i m p l e z.K l e i s l i._ s h o w / K l e i s l i + c a t e g o r y]]
  */
 trait Kleisli[F[_], A, B] {
 
@@ -192,7 +189,7 @@ trait Kleisli[F[_], A, B] {
   def flatMap[C](f: B => Kleisli[F, A, C])(implicit G: Monad[F]): Kleisli[F, A, C] = kleisli {
     (r: A) =>
       val b = this.run(r)
-      G.flatMap(b) { b: B => f(b).run(r)}
+      G.flatMap(b) { b: B => f(b).run(r) }
   }
 
   def flatMapK[C](f: B => F[C])(implicit F: Monad[F]): Kleisli[F, A, C] =
@@ -235,16 +232,16 @@ object State {
  *
  * This implementation lacks the details and usefulness of the scalaz implementation as it omits the
  * F[_] typeconstructor for values of W.
- * 
- * 
+ *
+ *
  * {{{
  *   def addition(x1: Int, y1: Int) = for {
-        x <- x1.set(List(s"x =  $x1"))
-        y <- y1.set(List(s"y =  $y1"))
-        result <- (x + y).set(List(s"Adding values ${x + y}"))
-      } yield result
-  
-     val Writer((w,a)) = addition(10, 20)
+ * x <- x1.set(List(s"x =  $x1"))
+ * y <- y1.set(List(s"y =  $y1"))
+ * result <- (x + y).set(List(s"Adding values ${x + y}"))
+ * } yield result
+ *
+ * val Writer((w,a)) = addition(10, 20)
  * }}}
  *
  * @constructor
@@ -269,7 +266,7 @@ final case class Writer[W, A](run: (W, A)) {
   def flatMap[B](f: A => Writer[W, B])(implicit s: Semigroup[W]): Writer[W, B] = {
     val (w, a) = run
     val (w1, b) = f(a).run
-    Writer(s.mappend(w, w1) -> b)
+    Writer(s.append(w, w1) -> b)
   }
 
   /**
@@ -304,7 +301,7 @@ final case class Writer[W, A](run: (W, A)) {
    * }}}
    */
   def <++:(w: => W)(implicit F: Functor[Id], W: Semigroup[W]): Writer[W, A] =
-    mapWritten(W.mappend(w, _))
+    mapWritten(W.append(w, _))
 
   /**
    * Append a W to a writer.
@@ -313,7 +310,7 @@ final case class Writer[W, A](run: (W, A)) {
    * }}}
    */
   def :++>(w: => W)(implicit F: Functor[Id], W: Semigroup[W]): Writer[W, A] =
-    mapWritten(W.mappend(_, w))
+    mapWritten(W.append(_, w))
 
   /**
    * Clear the written side with a Monoid.
@@ -321,5 +318,25 @@ final case class Writer[W, A](run: (W, A)) {
   def reset(implicit W: Monoid[W]): Writer[W, A] = {
     Writer(W.mzero -> value)
   }
+}
 
+/** 
+ *  A monad transformer which encapsulates the monad Option in any Monad F.
+ *  
+ *  E.g. a `Future[Option[A]]` can be encapsulated in a OptionT[Future, A]
+ *  
+ */
+final case class OptionT[F[_], A](run: F[Option[A]]) {
+  self =>
+
+  def map[B](f: A => B)(implicit F: Functor[F]): OptionT[F, B] = 
+    new OptionT[F, B](mapO((opt : Option[A]) => opt map f))
+
+  def flatMap[B](f: A => OptionT[F, B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
+    F.flatMap(self.run) {
+      case None => F.pure(None: Option[B])
+      case Some(z) => f(z).run
+    })
+
+  private def mapO[B](f: Option[A] => B)(implicit F: Functor[F]) = F.map(run)(f)
 }
