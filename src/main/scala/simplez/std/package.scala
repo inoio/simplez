@@ -58,7 +58,8 @@ package object std {
 
       override def append(a: List[A], b: List[A]): List[A] = a ++ b
     }
-    implicit val listInstance2 = new   Monad[List] {
+
+    implicit val listInstance2 = new Monad[List] {
 
       override def flatMap[A, B](F: List[A])(f: (A) => List[B]): List[B] = F.flatMap(f)
 

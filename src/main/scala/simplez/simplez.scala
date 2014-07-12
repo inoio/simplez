@@ -108,6 +108,12 @@ trait Foldable[F[_]] {
    * results.
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
+
+  def sum[A](fa: F[A])(implicit F :Monoid[A]) : A = foldMap(fa)((a : A)=> a)
+}
+
+case object Foldable {
+  def apply[F[_]](implicit F : Foldable[F]) : Foldable[F] = F
 }
 
 /**
@@ -349,6 +355,13 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
       case Some(z) => f(z).run
     })
 
+  /**
+   * This works as an internal helper function to make it easier to rewrite the API of the underlying monad.
+   * @param f the function you would like to invoke on the underlying monad
+   * @param F for this to work we need an implicit functor instance
+   * @tparam B the result type
+   * @return the result in the outer monad.
+   */
   private def mapO[B](f: Option[A] => B)(implicit F: Functor[F]): F[B] = F.map(run)(f)
 }
 
