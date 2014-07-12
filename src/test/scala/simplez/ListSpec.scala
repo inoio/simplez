@@ -50,7 +50,7 @@ class ListSpec extends Specification {
       "and can compute values with functions in a context" in {
         val neg = (a: Int) => -a
         val multBy2 = (a: Int) => 2 * a
-        
+
         APP.ap(list)(List(neg, multBy2)) must beEqualTo(List(-1, -2, -3, 2, 4, 6))
       }
     }

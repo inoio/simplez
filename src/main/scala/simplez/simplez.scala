@@ -1,6 +1,6 @@
 package simplez
 
-import scala.language.{ higherKinds, implicitConversions }
+import scala.language.{higherKinds, implicitConversions}
 
 /**
  * A Semigroup defines an associative binary function.
@@ -109,11 +109,11 @@ trait Foldable[F[_]] {
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
 
-  def sum[A](fa: F[A])(implicit F :Monoid[A]) : A = foldMap(fa)((a : A)=> a)
+  def sum[A](fa: F[A])(implicit F: Monoid[A]): A = foldMap(fa)((a: A) => a)
 }
 
 case object Foldable {
-  def apply[F[_]](implicit F : Foldable[F]) : Foldable[F] = F
+  def apply[F[_]](implicit F: Foldable[F]): Foldable[F] = F
 }
 
 /**
@@ -147,7 +147,7 @@ sealed trait Free[F[_], A] {
   def map[B](f: A => B): Free[F, B] =
     flatMap(a => Return(f(a)))
 
-  def foldMap[G[_]: Monad](f: F ~> G): G[A] =
+  def foldMap[G[_] : Monad](f: F ~> G): G[A] =
     this match {
       case Return(a) => Monad[G].pure(a)
       case Bind(fx, g) =>
@@ -161,7 +161,7 @@ case class Return[F[_], A](a: A)
   extends Free[F, A]
 
 case class Bind[F[_], I, A](a: F[I],
-  f: I => Free[F, A]) extends Free[F, A]
+                            f: I => Free[F, A]) extends Free[F, A]
 
 /**
  *
@@ -201,7 +201,7 @@ trait Kleisli[F[_], A, B] {
   def flatMap[C](f: B => Kleisli[F, A, C])(implicit G: Monad[F]): Kleisli[F, A, C] = kleisli {
     (r: A) =>
       val b = this.run(r)
-      G.flatMap(b) { b: B => f(b).run(r) }
+      G.flatMap(b) { b: B => f(b).run(r)}
   }
 
   def flatMapK[C](f: B => F[C])(implicit F: Monad[F]): Kleisli[F, A, C] =
@@ -333,13 +333,13 @@ final case class Writer[W, A](run: (W, A)) {
 }
 
 /**
- *  A monad transformer which encapsulates the monad Option in any Monad F.
+ * A monad transformer which encapsulates the monad Option in any Monad F.
  *
- *  E.g. a `Future[Option[A]]` can be encapsulated in a OptionT[Future, A].
- *  Anytime you have the structure M[N[A] and you do not care about the outer N
- *  at the moment, you can choose an NT Monad Transformer, e.g.
- *  ListT[Option,A] if you have an Option[List[A]] or a
- *  OptionT[Future, A] if you have a Future[Option[A]]
+ * E.g. a `Future[Option[A]]` can be encapsulated in a OptionT[Future, A].
+ * Anytime you have the structure M[N[A] and you do not care about the outer N
+ * at the moment, you can choose an NT Monad Transformer, e.g.
+ * ListT[Option,A] if you have an Option[List[A]] or a
+ * OptionT[Future, A] if you have a Future[Option[A]]
  *
  */
 final case class OptionT[F[_], A](run: F[Option[A]]) {
@@ -367,22 +367,22 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
 
 final case class ListT[F[A], A](run: F[List[A]]) {
   self =>
-  def map[B](f: A=> B)(implicit F: Functor[F]) : ListT[F,B] =
-     ListT[F,B](mapO((list : List[A]) => list map f))
+  def map[B](f: A => B)(implicit F: Functor[F]): ListT[F, B] =
+    ListT[F, B](mapO((list: List[A]) => list map f))
 
-  def flatMap[B](f : A=> ListT[F,B])(implicit F: Monad[F]) : ListT[F,B] =  ListT[F,B](
+  def flatMap[B](f: A => ListT[F, B])(implicit F: Monad[F]): ListT[F, B] = ListT[F, B](
     F.flatMap(self.run) {
       case Nil => F.pure(Nil)
       case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
     }
   )
 
-  def head(implicit F: Functor[F]) : F[A] = mapO(_.head)
+  def head(implicit F: Functor[F]): F[A] = mapO(_.head)
 
-  def isEmpty(implicit F : Functor[F]) : F[Boolean] = mapO(_.isEmpty)
+  def isEmpty(implicit F: Functor[F]): F[Boolean] = mapO(_.isEmpty)
 
-  def ++(bs: => ListT[F, A])(implicit F: Monad[F]) : ListT[F, A] = new ListT(F.flatMap(run){list1 =>
-    F.map(bs.run){list2 =>
+  def ++(bs: => ListT[F, A])(implicit F: Monad[F]): ListT[F, A] = new ListT(F.flatMap(run) { list1 =>
+    F.map(bs.run) { list2 =>
       list1 ++ list2
     }
   })

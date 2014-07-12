@@ -1,6 +1,7 @@
 package simplez
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.higherKinds
 
 package object std {
 
@@ -64,6 +65,12 @@ package object std {
       override def flatMap[A, B](F: List[A])(f: (A) => List[B]): List[B] = F.flatMap(f)
 
       override def pure[A](a: A): List[A] = List(a)
+    }
+
+    implicit def listTInstance[F[_]](implicit M: Monad[F]) = new Monad[({type l[a] = ListT[F, a]})#l] {
+      override def flatMap[A, B](F: ListT[F, A])(f: (A) => ListT[F, B]): ListT[F, B] = F.flatMap(f)
+
+      override def pure[A](a: A): ListT[F, A] = ListT[F, A](M.pure(List(a)))
     }
   }
 

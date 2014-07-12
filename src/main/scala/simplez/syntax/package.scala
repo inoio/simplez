@@ -54,16 +54,17 @@ package object syntax {
   }
 
 
-  trait WriterSyntax[W,A] {
-    def self : A
-    def set(w : W) : Writer[W,A] = Writer(w -> self)
+  trait WriterSyntax[W, A] {
+    def self: A
+
+    def set(w: W): Writer[W, A] = Writer(w -> self)
   }
 
-  implicit def ToWriterOps[W,A](a: A) = new WriterSyntax[W,A] {
-    def self : A = a
+  implicit def ToWriterOps[W, A](a: A) = new WriterSyntax[W, A] {
+    def self: A = a
   }
-  
-  implicit def writerToMonad[W,A](w: Writer [W,A])(implicit W : Monoid[W]) = new Monad[({type λ[α]=Writer[W, α]})#λ] {
+
+  implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({type λ[α] = Writer[W, α]})#λ] {
     override def flatMap[A, B](F: Writer[W, A])(f: (A) => Writer[W, B]): Writer[W, B] = F.flatMap(f)
 
     override def pure[A](a: A): Writer[W, A] = Writer(W.mzero -> a)
