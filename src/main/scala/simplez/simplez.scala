@@ -52,6 +52,9 @@ object Functor {
 trait Applicative[F[_]] extends Functor[F] {
   def pure[A](a: A): F[A]
 
+  /**
+   * execute a function f within a context F within that context fa : F[A].
+   */
   def ap[A, B](F: => F[A])(f: => F[A => B]): F[B]
 
   // derived functions    
@@ -59,6 +62,9 @@ trait Applicative[F[_]] extends Functor[F] {
   def ap2[A, B, C](fa: => F[A], fb: => F[B])(f: F[(A, B) => C]): F[C] =
     ap(fb)(ap(fa)(map(f)(_.curried)))
 
+  /**
+   * override map with ap of an Applicative
+   */
   override def map[A, B](fa: F[A])(f: A => B): F[B] =
     ap(fa)(pure(f))
 
@@ -320,23 +326,53 @@ final case class Writer[W, A](run: (W, A)) {
   }
 }
 
-/** 
+/**
  *  A monad transformer which encapsulates the monad Option in any Monad F.
- *  
- *  E.g. a `Future[Option[A]]` can be encapsulated in a OptionT[Future, A]
- *  
+ *
+ *  E.g. a `Future[Option[A]]` can be encapsulated in a OptionT[Future, A].
+ *  Anytime you have the structure M[N[A] and you do not care about the outer N
+ *  at the moment, you can choose an NT Monad Transformer, e.g.
+ *  ListT[Option,A] if you have an Option[List[A]] or a
+ *  OptionT[Future, A] if you have a Future[Option[A]]
+ *
  */
 final case class OptionT[F[_], A](run: F[Option[A]]) {
   self =>
 
-  def map[B](f: A => B)(implicit F: Functor[F]): OptionT[F, B] = 
-    new OptionT[F, B](mapO((opt : Option[A]) => opt map f))
+  def map[B](f: A => B)(implicit F: Functor[F]): OptionT[F, B] =
+    new OptionT[F, B](mapO((opt: Option[A]) => opt map f))
 
   def flatMap[B](f: A => OptionT[F, B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
     F.flatMap(self.run) {
+      // partial functions: expected A => F[B]
       case None => F.pure(None: Option[B])
       case Some(z) => f(z).run
     })
 
-  private def mapO[B](f: Option[A] => B)(implicit F: Functor[F]) = F.map(run)(f)
+  private def mapO[B](f: Option[A] => B)(implicit F: Functor[F]): F[B] = F.map(run)(f)
+}
+
+final case class ListT[F[A], A](run: F[List[A]]) {
+  self =>
+  def map[B](f: A=> B)(implicit F: Functor[F]) : ListT[F,B] =
+     ListT[F,B](mapO((list : List[A]) => list map f))
+
+  def flatMap[B](f : A=> ListT[F,B])(implicit F: Monad[F]) : ListT[F,B] =  ListT[F,B](
+    F.flatMap(self.run) {
+      case Nil => F.pure(Nil)
+      case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
+    }
+  )
+
+  def head(implicit F: Functor[F]) : F[A] = mapO(_.head)
+
+  def isEmpty(implicit F : Functor[F]) : F[Boolean] = mapO(_.isEmpty)
+
+  def ++(bs: => ListT[F, A])(implicit F: Monad[F]) : ListT[F, A] = new ListT(F.flatMap(run){list1 =>
+    F.map(bs.run){list2 =>
+      list1 ++ list2
+    }
+  })
+
+  private def mapO[B](f: List[A] => B)(implicit F: Functor[F]) = F.map(run)(f)
 }
