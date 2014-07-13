@@ -11,7 +11,7 @@ package object simplez {
 
   object id {
     implicit val idMonad = new Monad[Id] {
-      def pure[A](a: A): Id[A] = a
+      def pure[A](a:  A): Id[A] = a
 
       def flatMap[A, B](F: Id[A])(f: A => Id[B]): Id[B] = f(F)
     }

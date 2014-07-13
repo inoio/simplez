@@ -45,6 +45,8 @@ package object syntax {
     def F: Monad[F]
 
     def flatMap[B](f: A => F[B]): F[B] = F.flatMap(self)(f)
+    
+    def pure[A](a: A) : F[A] = F.pure(a)
   }
 
   implicit def ToMonadOps[F[_] : Monad, A](a: F[A]): MonadSyntax[F, A] = new MonadSyntax[F, A] {
