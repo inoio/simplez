@@ -70,4 +70,40 @@ package object syntax {
     override def pure[A](a: A): Writer[W, A] = Writer(W.mzero -> a)
   }
 
+  implicit def ToApplicativeOps[F[_] : Applicative,A](a: F[A]) = new ApplicativeSyntax[F,A] {
+    val self = a
+  }
+
+  trait ApplicativeSyntax[F[_],A] {
+    def self : F[A]
+
+    def |@|[B](b1 : F[B]) = new ApplicativeBuilder[F,A,B] {
+      val a = self
+      val b = b1
+    }
+  }
+
+  trait ApplicativeBuilder[M[_], A, B] {
+    val a: M[A]
+    val b: M[B]
+
+    def apply[C](f: (A, B) => C)(implicit ap: Applicative[M]): M[C] = ap.apply2(a, b)(f)
+
+    def tupled(implicit ap: Applicative[M]): M[(A, B)] = apply(Tuple2.apply)
+
+    def |@|[C](cc: M[C]) = new ApplicativeBuilder3[C] {
+      val c = cc
+    }
+
+    sealed trait ApplicativeBuilder3[C] {
+      val c: M[C]
+
+      def apply[D](f: (A, B, C) => D)(implicit ap: Applicative[M]): M[D] = ap.apply3(a, b, c)(f)
+
+      def tupled(implicit ap: Applicative[M]): M[(A, B, C)] = apply(Tuple3.apply)
+
+    }
+
+  }
+
 }

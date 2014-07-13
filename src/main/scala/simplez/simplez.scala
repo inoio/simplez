@@ -50,6 +50,8 @@ object Functor {
 }
 
 trait Applicative[F[_]] extends Functor[F] {
+
+
   def pure[A](a: A): F[A]
 
   /**
@@ -80,7 +82,7 @@ trait Applicative[F[_]] extends Functor[F] {
   def ap2[A, B, C](fa: => F[A], fb: => F[B])(f: F[(A, B) => C]): F[C] =
     ap(fb)(ap(fa)(map(f)(_.curried)))
 
-  def ap3[A, B, C, D](fa: => F[A], fb: => F[B])(fc: => F[C])(f: F[(A, B, C) => D]): F[D] =
+  def ap3[A, B, C, D](fa: => F[A], fb: => F[B], fc: => F[C])(f: F[(A, B, C) => D]): F[D] =
     ap(fc)(ap(fb)(ap(fa)(map(f)(_.curried))))
 
   /**
@@ -91,6 +93,8 @@ trait Applicative[F[_]] extends Functor[F] {
 
   def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
     ap2(fa, fb)(pure(f))
+
+  def apply3[A,B,C,D](fa: => F[A], fb:  =>F[B], fc: => F[C])(f : (A,B,C) => D) = ap3(fa,fb,fc)(pure(f))
 }
 
 /**
@@ -232,9 +236,25 @@ trait Kleisli[F[_], A, B] {
   def local[AA](f : AA => A) : Kleisli[F,AA,B] = kleisli(f andThen run)
 }
 
+
+
 object Kleisli {
+
+  trait KleisliMonad[F[_], R] extends Monad[({type l[a] = Kleisli[F, R, a]})#l]  {
+    implicit def F: Monad[F]
+    override def pure[A](a: A): Kleisli[F, R, A] = kleisli{_ => F.pure(a)}
+
+    override def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] = fa.flatMap(f)
+    override def ap[A, B](fa: => Kleisli[F, R, A])(f: => Kleisli[F, R, A => B]): Kleisli[F, R, B] =
+      kleisli[F, R, B](r => F.ap(fa.run(r))(f.run(r)))
+  }
+
   def kleisli[F[_], A, B](f: A => F[B]): Kleisli[F, A, B] = new Kleisli[F, A, B] {
     def run(a: A): F[B] = f(a)
+  }
+  
+  implicit def kleisliInstance[T[_],R](implicit M : Monad[T]) : KleisliMonad[T,R] = new KleisliMonad[T,R] {
+    override implicit def F: Monad[T] = M
   }
 }
 
@@ -433,6 +453,8 @@ case object ListT {
 
 sealed trait CValidation[A, B] {
 
+
+
   def ap[C](x: => CValidation[A, B => C])(implicit S : Semigroup[A]) : CValidation[A, C] = {
     (this, x) match {
       case (CRight(a), CRight(f)) => CRight(f(a))
@@ -442,8 +464,40 @@ sealed trait CValidation[A, B] {
     }
   }
 
+  def map[C](f : B => C) : CValidation[A,C] = {
+    this match {
+      case CLeft(error) => CLeft[A,C](error)
+      case CRight(good) => CRight[A,C](f(good))
+    }
+  }
+
+  def flatMap[C](f: (B) => CValidation[A, C]): CValidation[A, C] = {
+    this match {
+      case CLeft(error) => CLeft[A,C](error)
+      case CRight(good) => f(good)
+      }
+    }
+
+
 }
 
+object CValidation {
+    
+    implicit def cvalidationInstances1[X](implicit SG:Semigroup[X]): Monad[({type l[a]=CValidation[X,a]})#l] = new Monad[({type l[a] = CValidation[X, a]})#l] {
+
+      override def flatMap[A, B](F: CValidation[X, A])(f: (A) => CValidation[X, B]): CValidation[X, B] = {
+        F.flatMap(f)
+      }
+
+      override def pure[A](a: A): CValidation[X, A] = CRight(a)
+
+      /**
+       * It is required to overwrite ap as we need to keep collecting the results.
+       */
+      override def ap[A, B](F: => CValidation[X, A])(f: => CValidation[X, (A) => B]): CValidation[X, B] = F.ap(f)(SG)
+    }
+
+  }
 case class CLeft[A, B](run : A) extends CValidation[A,B] {
 
 }

@@ -46,7 +46,7 @@ package object std {
   }
 
   object list {
-    implicit def listInstance1[A: Monoid] = new Monoid[List[A]] with Foldable[List] {
+    implicit def listInstance1[A] = new Monoid[List[A]] with Foldable[List] {
       override def mzero: List[A] = List.empty[A]
 
       /**
@@ -96,6 +96,12 @@ package object std {
           case _ => mzero
         }
       }
+    }
+    
+    implicit def optionInstance1[A] = new Monad[Option] {
+      override def flatMap[A, B](F: Option[A])(f: (A) => Option[B]): Option[B] = F.flatMap(f)
+
+      override def pure[A](a: A): Option[A] = Some(a) : Option[A]
     }
 
     implicit val optionNT: NaturalTransformation[Option, List] =
