@@ -31,7 +31,7 @@ object Monoid {
 }
 
 /**
- * A functor is a structure which defines a mapping from the type A to type B.
+ * A functor is a structure which defines a mapping from F[A] to F[B]
  *
  * @tparam F a type constructor.
  * @see [[http://en.wikipedia.org/wiki/Functor]]
@@ -41,6 +41,7 @@ trait Functor[F[_]] {
    * the mapping function.
    * {{{
    * 	val listString = Functor[List].map(listInt){ (a:Int) => a.toString }
+   * }}}
    */
   def map[A, B](F: F[A])(f: A => B): F[B]
 }
@@ -49,6 +50,12 @@ object Functor {
   def apply[F[_]](implicit F: Functor[F]) = F
 }
 
+/**
+ *
+ * @tparam F a type constructor.
+ *
+ * @see [[syntax.ApplicativeBuilder]] for the famous `|@|` (Admiral Akbhar) operator.
+ */
 trait Applicative[F[_]] extends Functor[F] {
 
 
@@ -62,7 +69,7 @@ trait Applicative[F[_]] extends Functor[F] {
   // derived functions    
 
   /**
-   * ap2 - ... are the tupled/curried versions
+   * ap2 and up are the tupled/curried versions of ap via N parameters.
    * the function f is curried in the form F[A=>B=>C]
    * and then applied repeatedly, so that
    * {{{
@@ -74,10 +81,7 @@ trait Applicative[F[_]] extends Functor[F] {
    *    ap(fb)(F[B => C]
    * }}}
    * finally delivers F[C]
-   * @param fa
-   * @param fb
-   * @param f a function with two parameters F[(A,B)  => C]
-   * @return
+   *
    */
   def ap2[A, B, C](fa: => F[A], fb: => F[B])(f: F[(A, B) => C]): F[C] =
     ap(fb)(ap(fa)(map(f)(_.curried)))
@@ -86,15 +90,28 @@ trait Applicative[F[_]] extends Functor[F] {
     ap(fc)(ap(fb)(ap(fa)(map(f)(_.curried))))
 
   /**
-   * override map with ap of an Applicative
+   * override map with ap of an Applicative.
+   * As we have the means to put anything in our F now via pure the implementation looks like
+   *  {{{
+   *    ap(fa)(pure(f))
+   *  }}}
    */
   override def map[A, B](fa: F[A])(f: A => B): F[B] =
     ap(fa)(pure(f))
 
+  /** Same as the apN functions, only that we can pass an unlifted function,
+    * which is lifted for us into the context F.
+    * Implementation :
+    * {{{
+    *   ap2(fa, fb)(pure(f))
+    * }}}
+    * @see [[Applicative.ap2]]
+    */
   def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
     ap2(fa, fb)(pure(f))
 
-  def apply3[A,B,C,D](fa: => F[A], fb:  =>F[B], fc: => F[C])(f : (A,B,C) => D) = ap3(fa,fb,fc)(pure(f))
+  def apply3[A,B,C,D](fa: => F[A], fb:  =>F[B], fc: => F[C])(f : (A,B,C) => D) =
+    ap3(fa,fb,fc)(pure(f))
 }
 
 /**

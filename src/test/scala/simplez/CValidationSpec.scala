@@ -1,27 +1,29 @@
 package simplez
 
 import org.specs2.mutable._
-import syntax._
-import CValidation._
-import std.list._
-import std.string._
 
 class CValidationSpec extends Specification {
 
   "A CValidation (Collection Validation" should {
-    "behave like an Applicative" in {
 
-      type MyVal[A] = CValidation[List[String], A]
+    import simplez._
+    import CValidation._
+    import std.list._
+    import syntax._
 
-      val good: MyVal[Int] = CRight(3)
-      val bad: MyVal[Int] = CLeft(List("error"))
-      val F: Applicative[MyVal] = implicitly[Applicative[MyVal]]
+    type MyVal[A] = CValidation[List[String], A]
 
-      def helper(a: MyVal[Int], b: MyVal[Int]) = {
-        F.apply2(a, b) {
-          _ + _
-        }
+    val good: MyVal[Int] = CRight(3)
+    val bad: MyVal[Int] = CLeft(List("error"))
+    val F: Applicative[MyVal] = implicitly[Applicative[MyVal]]
+
+    def helper(a: MyVal[Int], b: MyVal[Int]) = {
+      F.apply2(a, b) {
+        _ + _
       }
+    }
+
+    "behave like an Applicative" in {
 
       "keep going with good results" in {
         helper(good, good) should beEqualTo(CRight(6))
@@ -41,7 +43,6 @@ class CValidationSpec extends Specification {
       }
 
       "and it should" in {
-        import syntax._
         "work with the |@| operator (simple case)" in {
           val result = (good |@| bad) {
             _ + _

@@ -2,8 +2,23 @@ package simplez
 
 import scala.language.{higherKinds, implicitConversions}
 
+/**
+ * This package provides implicit functions, so that we can for example access
+ *  {{{
+ *    val x : List[Int] = List(1,2,3)
+ *    x.mappend(List(4,5,6)
+ *  }}} instead of
+ *  {{{
+ *    Monoid[List].append(x, List(1,2,3)
+ *  }}}
+ *
+ */
 package object syntax {
 
+  /**
+   *
+   * @tparam A
+   */
   trait MonoidSyntax[A] {
     def self: A
 
@@ -19,12 +34,23 @@ package object syntax {
     def mzero(): A = F.mzero
   }
 
+  /**
+   *
+   * @param a
+   * @tparam A
+   * @return
+   */
   implicit def ToMonoidOps[A: Monoid](a: A): MonoidSyntax[A] = new MonoidSyntax[A] {
     def self: A = a
 
     def F: Monoid[A] = implicitly[Monoid[A]]
   }
 
+  /**
+   *
+   * @tparam F
+   * @tparam A
+   */
   trait FunctorSyntax[F[_], A] {
     def self: F[A]
 
@@ -33,12 +59,24 @@ package object syntax {
     def map[B](f: A => B): F[B] = F.map(self)(f)
   }
 
+  /**
+   *
+   * @param a
+   * @tparam F
+   * @tparam A
+   * @return
+   */
   implicit def ToFunctorOps[F[_] : Functor, A](a: F[A]): FunctorSyntax[F, A] = new FunctorSyntax[F, A] {
     def self = a
 
     def F: Functor[F] = implicitly[Functor[F]]
   }
 
+  /**
+   *
+   * @tparam F
+   * @tparam A
+   */
   trait MonadSyntax[F[_], A] {
     def self: F[A]
 
@@ -49,6 +87,13 @@ package object syntax {
     def pure[A](a: A) : F[A] = F.pure(a)
   }
 
+  /**
+   *
+   * @param a
+   * @tparam F
+   * @tparam A
+   * @return
+   */
   implicit def ToMonadOps[F[_] : Monad, A](a: F[A]): MonadSyntax[F, A] = new MonadSyntax[F, A] {
     def self = a
 
@@ -56,26 +101,58 @@ package object syntax {
   }
 
 
+  /**
+   *
+   * @tparam W
+   * @tparam A
+   */
   trait WriterSyntax[W, A] {
     def self: A
 
     def set(w: W): Writer[W, A] = Writer(w -> self)
   }
 
+  /**
+   *
+   * @param a
+   * @tparam W
+   * @tparam A
+   * @return
+   */
   implicit def ToWriterOps[W, A](a: A) = new WriterSyntax[W, A] {
     def self: A = a
   }
 
+  /**
+   *
+   * @param w
+   * @param W
+   * @tparam W
+   * @tparam A
+   * @return
+   */
   implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({type λ[α] = Writer[W, α]})#λ] {
     override def flatMap[A, B](F: Writer[W, A])(f: (A) => Writer[W, B]): Writer[W, B] = F.flatMap(f)
 
     override def pure[A](a: A): Writer[W, A] = Writer(W.mzero -> a)
   }
 
+  /**
+   *
+   * @param a
+   * @tparam F
+   * @tparam A
+   * @return
+   */
   implicit def ToApplicativeOps[F[_] : Applicative,A](a: F[A]) = new ApplicativeSyntax[F,A] {
     val self = a
   }
 
+  /**
+   *
+   * @tparam F
+   * @tparam A
+   */
   trait ApplicativeSyntax[F[_],A] {
     def self : F[A]
 
@@ -85,6 +162,12 @@ package object syntax {
     }
   }
 
+  /**
+   *
+   * @tparam M
+   * @tparam A
+   * @tparam B
+   */
   trait ApplicativeBuilder[M[_], A, B] {
     val a: M[A]
     val b: M[B]
