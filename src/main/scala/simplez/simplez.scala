@@ -53,14 +53,35 @@ trait Applicative[F[_]] extends Functor[F] {
   def pure[A](a: A): F[A]
 
   /**
-   * execute a function f within a context F within that context fa : F[A].
+   * execute a function f with a single parameter within a context F within that context fa : F[A].
    */
   def ap[A, B](F: => F[A])(f: => F[A => B]): F[B]
 
   // derived functions    
 
+  /**
+   * ap2 - ... are the tupled/curried versions
+   * the function f is curried in the form F[A=>B=>C]
+   * and then applied repeatedly, so that
+   * {{{
+   *    (ap(fa)(map(f)(_.curried)))
+   * }}}
+   * resolves to F[B => C]
+   * and
+   * {{{
+   *    ap(fb)(F[B => C]
+   * }}}
+   * finally delivers F[C]
+   * @param fa
+   * @param fb
+   * @param f a function with two parameters F[(A,B)  => C]
+   * @return
+   */
   def ap2[A, B, C](fa: => F[A], fb: => F[B])(f: F[(A, B) => C]): F[C] =
     ap(fb)(ap(fa)(map(f)(_.curried)))
+
+  def ap3[A, B, C, D](fa: => F[A], fb: => F[B])(fc: => F[C])(f: F[(A, B, C) => D]): F[D] =
+    ap(fc)(ap(fb)(ap(fa)(map(f)(_.curried))))
 
   /**
    * override map with ap of an Applicative
@@ -207,6 +228,8 @@ trait Kleisli[F[_], A, B] {
   def flatMapK[C](f: B => F[C])(implicit F: Monad[F]): Kleisli[F, A, C] =
     kleisli(a => F.flatMap(run(a))(f))
 
+
+  def local[AA](f : AA => A) : Kleisli[F,AA,B] = kleisli(f andThen run)
 }
 
 object Kleisli {
@@ -351,7 +374,7 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
   def flatMap[B](f: A => OptionT[F, B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
     F.flatMap(self.run) {
       // partial functions: expected A => F[B]
-      case None => F.pure(None: Option[B])
+      case None => F.pure(None)
       case Some(z) => f(z).run
     })
 
@@ -363,6 +386,17 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
    * @return the result in the outer monad.
    */
   private def mapO[B](f: Option[A] => B)(implicit F: Functor[F]): F[B] = F.map(run)(f)
+}
+
+case object OptionT {
+  /**
+   * This is essentially a function from the MonadTrans type class.
+   * Considering you have a Future[A] but need a Future[Option[A]] aka
+   * a OptionT[Future, A] you can lift the future into the monad of
+   * the monad transformer.
+   */
+  def liftM[G[_], A](a: G[A])(implicit G: Monad[G]): OptionT[G, A] =
+    OptionT[G, A](G.map(a)(a => Some(a)))
 }
 
 final case class ListT[F[A], A](run: F[List[A]]) {
@@ -377,6 +411,8 @@ final case class ListT[F[A], A](run: F[List[A]]) {
     }
   )
 
+  def headOption(implicit F: Functor[F]): F[Option[A]] = mapO(_.headOption)
+
   def head(implicit F: Functor[F]): F[A] = mapO(_.head)
 
   def isEmpty(implicit F: Functor[F]): F[Boolean] = mapO(_.isEmpty)
@@ -388,4 +424,30 @@ final case class ListT[F[A], A](run: F[List[A]]) {
   })
 
   private def mapO[B](f: List[A] => B)(implicit F: Functor[F]) = F.map(run)(f)
+}
+
+case object ListT {
+  def liftM[G[_], A](a: G[A])(implicit G: Monad[G]): ListT[G, A] = ListT[G, A](
+    G.map(a)(a => List(a)))
+}
+
+sealed trait CValidation[A, B] {
+
+  def ap[C](x: => CValidation[A, B => C])(implicit S : Semigroup[A]) : CValidation[A, C] = {
+    (this, x) match {
+      case (CRight(a), CRight(f)) => CRight(f(a))
+      case (CRight(a), CLeft(error)) => CLeft(error)
+      case (CLeft(error), CRight(f)) => CLeft(error)
+      case (CLeft(error1), CLeft(error2)) =>  CLeft(S.append(error1,error2))
+    }
+  }
+
+}
+
+case class CLeft[A, B](run : A) extends CValidation[A,B] {
+
+}
+
+case class CRight[A,B](run : B) extends CValidation[A,B] {
+
 }

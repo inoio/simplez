@@ -13,7 +13,7 @@ class ListTSpec extends Specification {
     "work like a list" in {
       "in map/flatMap Style" in {
         import std.future._
-        
+
         def listFn(x: Int): Future[List[Int]] = Future.successful(List(-x, x))
 
         val f: Future[List[Int]] = Future.successful {
@@ -37,6 +37,15 @@ class ListTSpec extends Specification {
           elem + 1
         }
         Await.result(listT.run, Duration.Inf) should beEqualTo(List(2, 3, 4))
+      }
+    }
+
+    "and have" in {
+      "have a liftM function to lift a x:G[A] into a ListT[G,A]" in {
+        import std.future._
+        val x = Future.successful("Hello")
+
+        Await.result(ListT.liftM(x).run, Duration.Inf) should beEqualTo(List("Hello"))
       }
     }
 
