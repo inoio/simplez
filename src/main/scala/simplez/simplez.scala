@@ -9,20 +9,34 @@ import scala.language.{higherKinds, implicitConversions}
  *  Semigroup[Int].mappend(3,4)
  * }}}
  *
+ * === Laws ===
+ * Associativity:  `a append (b append c) = (a append b) append c`
+ *
  * @tparam A the type of the semigroup
  * @see [[http://en.wikipedia.org/wiki/Semigroup]]
  */
 trait Semigroup[A] {
+  /**
+   * The associative binary function.
+   * @group("base")
+   */
   def append(a: A, b: A): A
 }
 
 /**
  * A Monoid is a special [[Semigroup]] together with an identity element call mzero.
  *
+ * === Law ===
+ * Identity : mzero append a = a
+ *
  * @tparam A the type of the monoid.
  * @see [[http://en.wikipedia.org/wiki/Monoid]]
  */
 trait Monoid[A] extends Semigroup[A] {
+  /**
+   * the identity element.
+   * @group("base")
+   */
   def mzero: A
 }
 
@@ -31,7 +45,8 @@ object Monoid {
 }
 
 /**
- * A functor is a structure which defines a mapping from F[A] to F[B]
+ * A functor is a structure which defines a mapping from F[A] to F[B].
+ * Strictly speaking this a covariant functor.
  *
  * @tparam F a type constructor.
  * @see [[http://en.wikipedia.org/wiki/Functor]]
@@ -42,6 +57,10 @@ trait Functor[F[_]] {
    * {{{
    * 	val listString = Functor[List].map(listInt){ (a:Int) => a.toString }
    * }}}
+   *
+   * === Laws ===
+   * Identity: `F[A].map(x => x) = F[A]`
+   * Composition: `F[A].map((b => c) compose (a => v)) = F[A].map(a => b).map(b=>c)
    */
   def map[A, B](F: F[A])(f: A => B): F[B]
 }
@@ -50,11 +69,27 @@ object Functor {
   def apply[F[_]](implicit F: Functor[F]) = F
 }
 
+
+
+trait ContravariantFunctor[F[_]] {
+  /**
+   * 
+   * @group("base")
+   */
+  def contramap[A,B](fa : F[A])(f : B => A) : F[B]
+}
+
+object ContravariantFunctor {
+  def apply[F[_]](implicit F : ContravariantFunctor[F]) = F
+}
+
+
+
 /**
  *
  * @tparam F a type constructor.
  *
- * @see [[syntax.ApplicativeBuilder]] for the famous `|@|` (Admiral Akbhar) operator.
+ * @see [[simplez.syntax.ApplicativeBuilder]] for the famous `|@|` (Admiral Akbhar) operator.
  */
 trait Applicative[F[_]] extends Functor[F] {
 
@@ -112,6 +147,10 @@ trait Applicative[F[_]] extends Functor[F] {
 
   def apply3[A,B,C,D](fa: => F[A], fb:  =>F[B], fc: => F[C])(f : (A,B,C) => D) =
     ap3(fa,fb,fc)(pure(f))
+}
+
+object Applicative {
+  def apply[F[_]](implicit F : Applicative[F]) : Applicative[F] = F
 }
 
 /**
@@ -199,10 +238,10 @@ sealed trait Free[F[_], A] {
     }
 }
 
-case class Return[F[_], A](a: A)
+final case class Return[F[_], A](a: A)
   extends Free[F, A]
 
-case class Bind[F[_], I, A](a: F[I],
+final case class Bind[F[_], I, A](a: F[I],
                             f: I => Free[F, A]) extends Free[F, A]
 
 /**
@@ -252,8 +291,6 @@ trait Kleisli[F[_], A, B] {
 
   def local[AA](f : AA => A) : Kleisli[F,AA,B] = kleisli(f andThen run)
 }
-
-
 
 object Kleisli {
 
@@ -464,13 +501,15 @@ final case class ListT[F[A], A](run: F[List[A]]) {
 }
 
 case object ListT {
+  /**
+   *
+   * @see [[OptionT.liftM]]
+   */
   def liftM[G[_], A](a: G[A])(implicit G: Monad[G]): ListT[G, A] = ListT[G, A](
     G.map(a)(a => List(a)))
 }
 
 sealed trait CValidation[A, B] {
-
-
 
   def ap[C](x: => CValidation[A, B => C])(implicit S : Semigroup[A]) : CValidation[A, C] = {
     (this, x) match {
@@ -515,10 +554,6 @@ object CValidation {
     }
 
   }
-case class CLeft[A, B](run : A) extends CValidation[A,B] {
+final case class CLeft[A, B](run : A) extends CValidation[A,B]
 
-}
-
-case class CRight[A,B](run : B) extends CValidation[A,B] {
-
-}
+final case class CRight[A,B](run : B) extends CValidation[A,B]

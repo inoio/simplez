@@ -160,6 +160,7 @@ package object syntax {
       val a = self
       val b = b1
     }
+
   }
 
   /**
