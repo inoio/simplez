@@ -197,6 +197,25 @@ case object Foldable {
   def apply[F[_]](implicit F: Foldable[F]): Foldable[F] = F
 }
 
+trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
+  
+  /**
+   * @groups("base")
+   */
+  def traverse[G[_]:Applicative,A,B](fa: F[A])(f: A => G[B]): G[F[B]]
+  
+   /** Traverse with the identity function. 
+    *	@group("derived")  
+    **/
+  def sequence[G[_]:Applicative,A](fga: F[G[A]]): G[F[A]] =
+    traverse(fga)(ga => ga)
+
+}
+
+object Traverse {
+  def apply[F[_]](implicit F : Traverse[F]): Traverse[F] = F
+}
+
 /**
  * A natural transformation defines a kind of conversion between type constructors.
  *

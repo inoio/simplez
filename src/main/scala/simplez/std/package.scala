@@ -46,7 +46,7 @@ package object std {
   }
 
   object list {
-    implicit def listInstance1[A] = new Monoid[List[A]] with Foldable[List] {
+    implicit def listInstance1[A] = new Monoid[List[A]] with Monad[List] with Foldable[List] with Traverse[List] {
       override def mzero: List[A] = List.empty[A]
 
       /**
@@ -57,11 +57,13 @@ package object std {
         fa.foldLeft(F.mzero) { case (a, b) => F.append(a, f(b))}
       }
 
+      override def traverse[G[_] : Applicative, A, B](fa: List[A])(f: (A) => G[B]): G[List[B]] =
+        fa.foldRight(Applicative[G].pure(List[B]())) {
+        (a, fbs) => Applicative[G].apply2(f(a), fbs)(_ :: _)
+      }
+
       override def append(a: List[A], b: List[A]): List[A] = a ++ b
-    }
-
-    implicit val listInstance2 = new Monad[List] {
-
+    
       override def flatMap[A, B](F: List[A])(f: (A) => List[B]): List[B] = F.flatMap(f)
 
       override def pure[A](a: A): List[A] = List(a)
@@ -75,12 +77,10 @@ package object std {
   }
 
   object future {
-    implicit def futureInstance(implicit ec: ExecutionContext) = new Monad[Future] {
+    implicit def futureInstance(implicit ec: ExecutionContext) = new Monad[Future]  {
       override def flatMap[A, B](F: Future[A])(f: (A) => Future[B]): Future[B] = F.flatMap(f)
 
-      override def pure[A](a: A): Future[A] = Future {
-        a
-      }(ec)
+      override def pure[A](a: A): Future[A] = Future { a }(ec)
     }
   }
 
