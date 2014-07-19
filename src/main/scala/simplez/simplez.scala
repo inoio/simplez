@@ -60,7 +60,7 @@ trait Functor[F[_]] {
    *
    * === Laws ===
    * Identity: `F[A].map(x => x) = F[A]`
-   * Composition: `F[A].map((b => c) compose (a => v)) = F[A].map(a => b).map(b=>c)
+   * Composition: `F[A].map((b => c) compose (a => v)) = F[A].map(a => b).map(b=>c)`
    */
   def map[A, B](F: F[A])(f: A => B): F[B]
 }
@@ -200,7 +200,7 @@ case object Foldable {
 trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
   
   /**
-   * @groups("base")
+   * @group("base")
    */
   def traverse[G[_]:Applicative,A,B](fa: F[A])(f: A => G[B]): G[F[B]]
   

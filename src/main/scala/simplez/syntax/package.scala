@@ -15,22 +15,27 @@ import scala.language.{higherKinds, implicitConversions}
  */
 package object syntax {
 
+  
+ 
+  trait SemigroupSyntax[A] {
+    def self: A
+    def F: Semigroup[A]
+    def |+|(b: A): A = append(b)
+    def append(b: A): A = F.append(self, b)
+  }
+
+  implicit def ToSemigroupOps[A: Semigroup](a: A): SemigroupSyntax[A] = new SemigroupSyntax[A] {
+    def self: A = a
+    def F: Semigroup[A] = implicitly[Semigroup[A]]
+  }
   /**
    *
    * @tparam A
    */
-  trait MonoidSyntax[A] {
+  trait MonoidSyntax[A]  {
     def self: A
 
     def F: Monoid[A]
-
-    /**
-     * alias for mappend.
-     */
-    def |+|(b: A): A = mappend(b)
-
-    def mappend(b: A): A = F.append(self, b)
-
     def mzero(): A = F.mzero
   }
 
