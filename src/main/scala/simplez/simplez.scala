@@ -189,7 +189,7 @@ object Monad {
 
 trait Foldable[F[_]] {
   /**
-   * Map each element of the structure to a [[Monoid]], and combine the\
+   * Map each element of the structure to a [[Monoid]], and combine the
    * results.
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B

@@ -20,7 +20,7 @@ class ListSpec extends Specification {
     }
 
     "have a monoid instance" in {
-      import simplez.std.int._
+      import simplez.std.anyVal._
       val Monoid = implicitly[Monoid[List[Int]]]
 
       "with an mzero" in {
@@ -41,7 +41,7 @@ class ListSpec extends Specification {
       }
 
       "and can sum a list of ints" in {
-        import simplez.std.int._
+        import simplez.std.anyVal._
         Foldable[List].sum(list) must beEqualTo(6)
       }
     }
