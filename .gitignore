@@ -8,3 +8,4 @@ target
 *.sc
 dics
 .idea
+/bin

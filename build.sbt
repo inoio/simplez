@@ -14,3 +14,15 @@ libraryDependencies ++= Seq(
 
 scalacOptions in (Compile,doc) := Seq("-groups", "-implicits", 
   "-doc-root-content", "rootdoc.txt")
+
+sourceGenerators in Compile += Def.task {
+  import SimplezGenerator._
+  val result : Seq[(String, String)] = makeSomeSources()
+  result.map{case (name, content) =>
+    val file = (sourceManaged in Compile).value / "simplez" / name
+    IO.write(file, content)
+    file
+  }
+}.taskValue
+
+EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed

@@ -95,38 +95,15 @@ object ContravariantFunctor {
  *
  * @see [[simplez.syntax.ApplicativeBuilder]] for the famous `|@|` (Admiral Akbhar) operator.
  */
-trait Applicative[F[_]] extends Functor[F] {
+trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
 
-
+ 
   def pure[A](a: A): F[A]
 
   /**
    * execute a function f with a single parameter within a context F within that context fa : F[A].
    */
   def ap[A, B](F: => F[A])(f: => F[A => B]): F[B]
-
-  // derived functions    
-
-  /**
-   * ap2 and up are the tupled/curried versions of ap via N parameters.
-   * the function f is curried in the form F[A=>B=>C]
-   * and then applied repeatedly, so that
-   * {{{
-   *    (ap(fa)(map(f)(_.curried)))
-   * }}}
-   * resolves to F[B => C]
-   * and
-   * {{{
-   *    ap(fb)(F[B => C]
-   * }}}
-   * finally delivers F[C]
-   *
-   */
-  def ap2[A, B, C](fa: => F[A], fb: => F[B])(f: F[(A, B) => C]): F[C] =
-    ap(fb)(ap(fa)(map(f)(_.curried)))
-
-  def ap3[A, B, C, D](fa: => F[A], fb: => F[B], fc: => F[C])(f: F[(A, B, C) => D]): F[D] =
-    ap(fc)(ap(fb)(ap(fa)(map(f)(_.curried))))
 
   /**
    * override map with ap of an Applicative.
@@ -138,19 +115,6 @@ trait Applicative[F[_]] extends Functor[F] {
   override def map[A, B](fa: F[A])(f: A => B): F[B] =
     ap(fa)(pure(f))
 
-  /** Same as the apN functions, only that we can pass an unlifted function,
-    * which is lifted for us into the context F.
-    * Implementation :
-    * {{{
-    *   ap2(fa, fb)(pure(f))
-    * }}}
-    * @see [[Applicative.ap2]]
-    */
-  def apply2[A, B, C](fa: => F[A], fb: => F[B])(f: (A, B) => C): F[C] =
-    ap2(fa, fb)(pure(f))
-
-  def apply3[A,B,C,D](fa: => F[A], fb:  =>F[B], fc: => F[C])(f : (A,B,C) => D) =
-    ap3(fa,fb,fc)(pure(f))
 }
 
 object Applicative {
