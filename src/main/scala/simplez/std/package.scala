@@ -85,17 +85,19 @@ package object std {
   }
 
   object option {
-    implicit def optionInstances[A: Monoid] = new Monoid[Option[A]] {
+    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]]  with Foldable[Option]{
       def mzero: Option[A] = None
 
       def append(a: Option[A], b: Option[A]): Option[A] = {
         (a, b) match {
-          case (Some(a1), Some(b1)) => Some(Monoid[A].append(a1, b1))
+          case (Some(a1), Some(b1)) => Some(Semigroup[A].append(a1, b1))
           case (Some(_), _) => a
           case (_, Some(_)) => b
           case _ => mzero
         }
       }
+      
+      def foldMap[A,B](fa : Option[A])(f : A => B)(implicit M : Monoid[B]) : B = fa.map(f).getOrElse(M.mzero)
     }
     
     implicit def optionInstance1[A] = new Monad[Option] {

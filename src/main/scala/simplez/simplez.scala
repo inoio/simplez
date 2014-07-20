@@ -23,6 +23,10 @@ trait Semigroup[A] {
   def append(a: A, b: A): A
 }
 
+object Semigroup {
+  def apply[A](implicit F : Semigroup[A]) : Semigroup[A] = F
+}
+
 /**
  * A Monoid is a special [[Semigroup]] together with an identity element call mzero.
  *
@@ -190,6 +194,9 @@ trait Foldable[F[_]] {
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
 
+  /**
+   * @group("derived")
+   */
   def sum[A](fa: F[A])(implicit F: Monoid[A]): A = foldMap(fa)((a: A) => a)
 }
 
