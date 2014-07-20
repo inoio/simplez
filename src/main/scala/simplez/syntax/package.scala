@@ -36,7 +36,7 @@ package object syntax {
     def self: A
 
     def F: Monoid[A]
-    def mzero(): A = F.mzero
+    def mzero(): A = F.zero
   }
 
   /**
@@ -139,7 +139,7 @@ package object syntax {
   implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({type λ[α] = Writer[W, α]})#λ] {
     override def flatMap[A, B](F: Writer[W, A])(f: (A) => Writer[W, B]): Writer[W, B] = F.flatMap(f)
 
-    override def pure[A](a: A): Writer[W, A] = Writer(W.mzero -> a)
+    override def pure[A](a: A): Writer[W, A] = Writer(W.zero -> a)
   }
 
   /**

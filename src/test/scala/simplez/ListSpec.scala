@@ -24,7 +24,7 @@ class ListSpec extends Specification {
       val Monoid = implicitly[Monoid[List[Int]]]
 
       "with an mzero" in {
-        Monoid.mzero must beEqualTo(List())
+        Monoid.zero must beEqualTo(List())
       }
 
       "with an append function" in {

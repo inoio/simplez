@@ -41,7 +41,7 @@ trait Monoid[A] extends Semigroup[A] {
    * the identity element.
    * @group("base")
    */
-  def mzero: A
+  def zero: A
 }
 
 object Monoid {
@@ -451,7 +451,7 @@ final case class Writer[W, A](run: (W, A)) {
    * Clear the written side with a Monoid.
    */
   def reset(implicit W: Monoid[W]): Writer[W, A] = {
-    Writer(W.mzero -> value)
+    Writer(W.zero -> value)
   }
 }
 
