@@ -158,10 +158,14 @@ trait Foldable[F[_]] {
    */
   def foldMap[A, B](fa: F[A])(f: A => B)(implicit F: Monoid[B]): B
 
+  def foldRight[A, B](fa: F[A], z: => B)(f: (A, B) => B): B
+
   /**
    * @group("derived")
+   * 
+   * Sum with the Monoid over the identity function.
    */
-  def sum[A](fa: F[A])(implicit F: Monoid[A]): A = foldMap(fa)((a: A) => a)
+  def fold[A](fa: F[A])(implicit F: Monoid[A]): A = foldMap(fa)(a => a)
 }
 
 case object Foldable {

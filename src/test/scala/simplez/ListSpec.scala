@@ -42,7 +42,7 @@ class ListSpec extends Specification {
 
       "and can sum a list of ints" in {
         import simplez.std.anyVal._
-        Foldable[List].sum(list) must beEqualTo(6)
+        Foldable[List].fold(list) must beEqualTo(6)
       }
     }
     "have an applicative instance" in {
