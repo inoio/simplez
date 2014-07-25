@@ -1,6 +1,6 @@
 package simplez
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.{ higherKinds, implicitConversions }
 
 /**
  * This package provides implicit functions, so that we can for example access
@@ -15,8 +15,6 @@ import scala.language.{higherKinds, implicitConversions}
  */
 package object syntax {
 
-  
- 
   trait SemigroupSyntax[A] {
     def self: A
     def F: Semigroup[A]
@@ -32,7 +30,7 @@ package object syntax {
    *
    * @tparam A
    */
-  trait MonoidSyntax[A]  {
+  trait MonoidSyntax[A] {
     def self: A
 
     def F: Monoid[A]
@@ -71,7 +69,7 @@ package object syntax {
    * @tparam A
    * @return
    */
-  implicit def ToFunctorOps[F[_] : Functor, A](a: F[A]): FunctorSyntax[F, A] = new FunctorSyntax[F, A] {
+  implicit def ToFunctorOps[F[_]: Functor, A](a: F[A]): FunctorSyntax[F, A] = new FunctorSyntax[F, A] {
     def self = a
 
     def F: Functor[F] = implicitly[Functor[F]]
@@ -88,8 +86,8 @@ package object syntax {
     def F: Monad[F]
 
     def flatMap[B](f: A => F[B]): F[B] = F.flatMap(self)(f)
-    
-    def pure[A](a: A) : F[A] = F.pure(a)
+
+    def pure[A](a: A): F[A] = F.pure(a)
   }
 
   /**
@@ -99,12 +97,11 @@ package object syntax {
    * @tparam A
    * @return
    */
-  implicit def ToMonadOps[F[_] : Monad, A](a: F[A]): MonadSyntax[F, A] = new MonadSyntax[F, A] {
+  implicit def ToMonadOps[F[_]: Monad, A](a: F[A]): MonadSyntax[F, A] = new MonadSyntax[F, A] {
     def self = a
 
     def F: Monad[F] = implicitly[Monad[F]]
   }
-
 
   /**
    *
@@ -136,7 +133,7 @@ package object syntax {
    * @tparam A
    * @return
    */
-  implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({type λ[α] = Writer[W, α]})#λ] {
+  implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({ type λ[α] = Writer[W, α] })#λ] {
     override def flatMap[A, B](F: Writer[W, A])(f: (A) => Writer[W, B]): Writer[W, B] = F.flatMap(f)
 
     override def pure[A](a: A): Writer[W, A] = Writer(W.zero -> a)
@@ -149,7 +146,7 @@ package object syntax {
    * @tparam A
    * @return
    */
-  implicit def ToApplicativeOps[F[_] : Applicative,A](a: F[A]) = new ApplicativeSyntax[F,A] {
+  implicit def ToApplicativeOps[F[_]: Applicative, A](a: F[A]) = new ApplicativeSyntax[F, A] {
     val self = a
   }
 
@@ -158,10 +155,10 @@ package object syntax {
    * @tparam F
    * @tparam A
    */
-  trait ApplicativeSyntax[F[_],A] {
-    def self : F[A]
+  trait ApplicativeSyntax[F[_], A] {
+    def self: F[A]
 
-    def |@|[B](b1 : F[B]) = new ApplicativeBuilder[F,A,B] {
+    def |@|[B](b1: F[B]) = new ApplicativeBuilder[F, A, B] {
       val a = self
       val b = b1
     }

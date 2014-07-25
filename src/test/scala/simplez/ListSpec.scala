@@ -58,14 +58,14 @@ class ListSpec extends Specification {
     "have a traverse instance" in {
       val T = implicitly[Traverse[List]]
       import scala.concurrent.ExecutionContext.Implicits._
-        import scala.concurrent._
-        import scala.concurrent.duration._
-        import std.future._
-        val list = List(Future.successful(1), Future.successful(2))
+      import scala.concurrent._
+      import scala.concurrent.duration._
+      import std.future._
+      val list = List(Future.successful(1), Future.successful(2))
       "and can sequence over a list of futures" in {
-        
+
         val result = Await.result(T.sequence(list), Duration.Inf)
-        result should beEqualTo(List(1,2))
+        result should beEqualTo(List(1, 2))
       }
     }
   }

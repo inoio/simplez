@@ -8,15 +8,15 @@ class FreeSpec extends Specification {
 
   "The Free Monad" should {
 
-    val nat : (Id ~> Id) = new NaturalTransformation[Id,Id] {
+    val nat: (Id ~> Id) = new NaturalTransformation[Id, Id] {
       override def apply[A](F: Id[A]): Id[A] = F
     }
 
-    def faculty(i : Long) : Free[Id, Long] = {
+    def faculty(i: Long): Free[Id, Long] = {
       if (i >= 1)
         for {
-          rec <- Bind[Id, Long,Long](i, i => faculty(i-1))
-        } yield { i * rec}
+          rec <- Bind[Id, Long, Long](i, i => faculty(i - 1))
+        } yield { i * rec }
       else
         Return(1)
     }

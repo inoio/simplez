@@ -57,7 +57,6 @@ class CValidationSpec extends Specification {
           result should beEqualTo(CLeft(List("error", "error")))
         }
 
-
       }
     }
   }

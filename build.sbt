@@ -25,4 +25,9 @@ sourceGenerators in Compile += Def.task {
   }
 }.taskValue
 
+testOptions in Test += Tests.Argument("console", "markdown")
+
 EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed
+
+scalariformSettings
+

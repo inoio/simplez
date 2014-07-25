@@ -3,8 +3,7 @@ package simplez
 import org.specs2.mutable._
 
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
-
+import scala.concurrent.{ Await, Future }
 
 class ListTSpec extends Specification {
 
@@ -48,7 +47,6 @@ class ListTSpec extends Specification {
         Await.result(ListT.liftM(x).run, Duration.Inf) should beEqualTo(List("Hello"))
       }
     }
-
 
   }
 
