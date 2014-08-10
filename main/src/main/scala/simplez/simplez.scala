@@ -98,7 +98,7 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
   /**
    * execute a function f with a single parameter within a context F within that context fa : F[A].
    */
-  def ap[A, B](F: => F[A])(f: => F[A => B]): F[B]
+  def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B]
 
   /**
    * override map with ap of an Applicative.
@@ -137,7 +137,7 @@ trait Monad[F[_]] extends Applicative[F] {
   def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] = {
     lazy val fa0: F[A] = fa
     // map(fa0) is a partially applied function
-    // val  m : (A => B) => F[B] = map(fa0) _
+    val m: (A => B) => F[B] = map(fa0) _
     flatMap(f)(map(fa0))
   }
 }

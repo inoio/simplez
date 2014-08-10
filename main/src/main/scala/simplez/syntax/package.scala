@@ -171,24 +171,24 @@ package object syntax {
    * @tparam A
    * @tparam B
    */
-  trait ApplicativeBuilder[M[_], A, B] {
-    val a: M[A]
-    val b: M[B]
+  trait ApplicativeBuilder[F[_], A, B] {
+    val a: F[A]
+    val b: F[B]
 
-    def apply[C](f: (A, B) => C)(implicit ap: Applicative[M]): M[C] = ap.apply2(a, b)(f)
+    def apply[C](f: (A, B) => C)(implicit ap: Applicative[F]): F[C] = ap.apply2(a, b)(f)
 
-    def tupled(implicit ap: Applicative[M]): M[(A, B)] = apply(Tuple2.apply)
+    def tupled(implicit ap: Applicative[F]): F[(A, B)] = apply(Tuple2.apply)
 
-    def |@|[C](cc: M[C]) = new ApplicativeBuilder3[C] {
+    def |@|[C](cc: F[C]) = new ApplicativeBuilder3[C] {
       val c = cc
     }
 
     sealed trait ApplicativeBuilder3[C] {
-      val c: M[C]
+      val c: F[C]
 
-      def apply[D](f: (A, B, C) => D)(implicit ap: Applicative[M]): M[D] = ap.apply3(a, b, c)(f)
+      def apply[D](f: (A, B, C) => D)(implicit ap: Applicative[F]): F[D] = ap.apply3(a, b, c)(f)
 
-      def tupled(implicit ap: Applicative[M]): M[(A, B, C)] = apply(Tuple3.apply)
+      def tupled(implicit ap: Applicative[F]): F[(A, B, C)] = apply(Tuple3.apply)
 
     }
 
