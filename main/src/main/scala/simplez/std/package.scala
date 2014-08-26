@@ -33,6 +33,9 @@ package object std {
       def append(a: Long, b: Long): Long = a + b
     }
 
+    /**
+     * conjunction.
+     */
     implicit val boolInstances = new Monoid[Boolean] {
       def zero = true
 

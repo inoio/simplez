@@ -47,7 +47,10 @@ object SimplezGenerator {
         val paramSize = types.size - 1
         val paramTypes = types init
         val lastParamType = paramTypes.last.toUpper
+        val nextParamType = paramTypes.drop(1).last.toUpper
         val valName = paramTypes.last.toLower
+        val nextValName = types.last.toLower
+        val nextValNameDouble = nextValName.toString + nextValName.toString
         val valNameType = paramTypes.last.toUpper
         val returnType = types.last.toUpper
         val callParams = paramTypes.map(_.toLower).mkString("(",",", ")")
@@ -67,7 +70,7 @@ object SimplezGenerator {
           if (types.size > 4) {
             result(types.init) +
               s"""
-      | // $types
+      |
       |sealed trait ApplicativeBuilder$paramSize[$lastParamType] {
       |      val $valName: F[$valNameType]
       |
@@ -75,6 +78,10 @@ object SimplezGenerator {
       |
       |      def tupled(implicit ap: Applicative[F]): F[${paramTypes.toParamList}] = apply(Tuple${paramSize}.apply)
       |
+      |      def |@|[$returnType](${nextValNameDouble}: F[${returnType}]) = new ApplicativeBuilder${paramSize +1}[${returnType}] {
+      |        val ${nextValName} = ${nextValNameDouble}
+      |      }
+
       |
     """.stripMargin
           }
@@ -97,8 +104,6 @@ object SimplezGenerator {
 
   def makeGenApApplyFunctions(list: List[List[Char]]): (String, String) = {
     def apXTemplate(list: List[Char]): String = {
-
-
       val size = list.size - 1
 
       // ap(fc)(ap(fb)(ap(fa)(map(f)(_.curried))))
