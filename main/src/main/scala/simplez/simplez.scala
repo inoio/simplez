@@ -243,13 +243,18 @@ trait Kleisli[F[_], A, B] {
 
   def run(a: A): F[B]
 
+  /** `andThen` two Kleisli's. */
   def andThen[C](k: Kleisli[F, B, C])(implicit b: Monad[F]): Kleisli[F, A, C] =
     kleisli((a: A) => b.flatMap(this.run(a))(k.run _))
 
+  /** alias for andThen. */
   def >=>[C](k: Kleisli[F, B, C])(implicit b: Monad[F]): Kleisli[F, A, C] = this andThen k
 
   def >==>[C](f: B => F[C])(implicit b: Monad[F]) = this andThen kleisli(f)
 
+  /**
+   * `compose` two Kleisli's.
+   */
   def compose[C](k: Kleisli[F, C, A])(implicit b: Monad[F]): Kleisli[F, C, B] = {
     k >=> this
   }
