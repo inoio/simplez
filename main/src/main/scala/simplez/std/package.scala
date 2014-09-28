@@ -48,6 +48,7 @@ package object std {
       override def zero: String = ""
 
       override def append(a: String, b: String): String = a + b
+
     }
   }
 
@@ -99,7 +100,7 @@ package object std {
   }
 
   object option {
-    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]] with Foldable[Option] {
+    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]] with Foldable[Option] with Applicative[Option] {
       def zero: Option[A] = None
 
       def append(a: Option[A], b: Option[A]): Option[A] = {
@@ -116,6 +117,19 @@ package object std {
       override def foldRight[A, B](fa: Option[A], z: => B)(f: (A, B) => B): B = fa match {
         case None => z
         case Some(head) => f(head, z)
+      }
+
+      override def pure[A](a: A): Option[A] = Some(a)
+
+      /**
+       * execute a function f with a single parameter within a context F within that context fa : F[A].
+       */
+      override def ap[A, B](fa: => Option[A])(f: => Option[(A) => B]): Option[B] = f match {
+        case Some(f) => fa match {
+          case Some(x) => Some(f(x))
+          case None => None
+        }
+        case None => None
       }
     }
 

@@ -154,6 +154,7 @@ package object syntax {
    */
   implicit def ToApplicativeOps[F[_]: Applicative, A](a: F[A]) = new ApplicativeSyntax[F, A] {
     val self = a
+    val F = Applicative[F]
   }
 
   /**
@@ -163,11 +164,19 @@ package object syntax {
    */
   trait ApplicativeSyntax[F[_], A] {
     def self: F[A]
+    def F: Applicative[F]
+
+    final def <*>[B](f: F[A => B]): F[B] = F.ap(self)(f)
+
+    /** Combine `self` and `fb` according to `Applicative[F]` with a function that discards the `A`s */
+    final def *>[B](fb: F[B]): F[B] = F.apply2(self, fb)((_, b) => b)
+
+    /** Combine `self` and `fb` according to `Applicative[F]` with a function that discards the `B`s */
+    final def <*[B](fb: F[B]): F[A] = F.apply2(self, fb)((a, _) => a)
 
     def |@|[B](b1: F[B]) = new ApplicativeBuilder[F, A, B] {
       val a = self
       val b = b1
-
     }
 
   }

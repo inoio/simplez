@@ -194,7 +194,7 @@ object Traverse {
  * @tparam G
  * @see [[http://en.wikipedia.org/wiki/Natural_transformation]]
  */
-trait NaturalTransformation[-F[_], +G[_]] {
+abstract class NaturalTransformation[-F[_], +G[_]] {
   def apply[A](F: F[A]): G[A]
 }
 
@@ -205,6 +205,16 @@ object NaturalTransformation {
    * defines an implicit conversion from a natural transformation to a function `F[A] => G[A]`
    */
   implicit def reify[F[_], G[_], A](NT: F ~> G): F[A] => G[A] = { f => NT(f) }
+}
+
+/**
+ *  Higher kinded natural transformation
+ *
+ */
+abstract class NaturalTransformation2[-F[_[_]], +G[_[_]]] {
+  def apply[M[_]](F: F[M]): G[M]
+
+  implicit def reify[F[_[_]], G[_[_]], M[_]](NT: F ~~> G): F[M] => G[M] = { f => NT(f) }
 }
 
 sealed trait Free[F[_], A] {
@@ -226,6 +236,15 @@ sealed trait Free[F[_], A] {
           g(a).foldMap(f)
         }
     }
+
+  def runM[G[_]: Monad](f: F ~> G): G[A] = {
+    val G = implicitly[Monad[G]]
+    this match {
+      case Return(a) => G.pure(a)
+      case Bind(r, k) =>
+        G.flatMap(f(r))(k andThen (_.runM(f)))
+    }
+  }
 }
 
 final case class Return[F[_], A](a: A)
@@ -309,6 +328,12 @@ object Kleisli {
 trait State[S, A] {
   def run(s: S): (S, A)
 
+  def runZero(implicit M: Monoid[S]): (S, A) = run(M.zero)
+
+  def exec(initial: S): S = run(initial)._1
+
+  def eval(initial: S): A = run(initial)._2
+
   def map[B](f: A => B): State[S, B] = State[S, B] {
     s =>
       val (s1, a) = run(s)
@@ -327,6 +352,15 @@ object State {
   def apply[S, A](f: S => (S, A)) = new State[S, A] {
     def run(s: S) = f(s)
   }
+
+  trait StateMonad[S] extends Monad[({ type l[a] = State[S, a] })#l] {
+    override def flatMap[A, B](F: State[S, A])(f: (A) => State[S, B]): State[S, B] = F.flatMap(f)
+
+    override def pure[A](a: A): State[S, A] = State[S, A](s => (s, a))
+
+  }
+
+  implicit def stateInstance[S] = new StateMonad[S] {}
 }
 
 /**
