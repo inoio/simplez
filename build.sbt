@@ -21,6 +21,7 @@ lazy val main = project.in(file("main"))
   .settings(commonSettings: _*)
   .settings(
   libraryDependencies ++= Seq(
+    "com.chuusai" %% "shapeless" % "2.0.0",
     "org.specs2" %% "specs2" % "2.3.12" % "test"
   ),
     testOptions in Test += Tests.Argument("console", "markdown"),

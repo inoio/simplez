@@ -2,26 +2,19 @@ package simplez
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
+import shapeless._
+import shapeless.test.illTyped
 
 class MonoidSpec extends Specification with ScalaCheck {
 
-  implicit val doubleMonoid = new Monoid[Double] {
-    /**
-     * the identity element.
-     * @group( " b a s e " )
-     */
-    override def zero: Double = 0.0
-
-    /**
-     * The associative binary function.
-     * @group( " b a s e " )
-     */
-    override def append(a: Double, b: Double): Double = a + b
-  }
-
   "A monoid " should {
-    "not work for Doubles due to IEEE imprecision" in {
-      check((a: Double, b: Double) => Monoid[Double].append(a, b) - a - b == Monoid[Double].zero)
+    "not exists for Doubles due to IEEE imprecision" in {
+      illTyped {
+        """
+        implicitly[Monoid[Double]]
+        """
+      }
+      ok
     }
 
     "work for Ints" in {
