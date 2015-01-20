@@ -110,6 +110,12 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
   override def map[A, B](fa: F[A])(f: A => B): F[B] =
     ap(fa)(pure(f))
 
+  def traverse[A, G[_], B](value: G[A])(f: A => F[B])(implicit G: Traverse[G]): F[G[B]] =
+    G.traverse(value)(f)(this)
+
+  def sequence[A, G[_]: Traverse](as: G[F[A]]): F[G[A]] =
+    traverse(as)(a => a)
+
 }
 
 object Applicative {
@@ -140,6 +146,8 @@ trait Monad[F[_]] extends Applicative[F] {
     val m: (A => B) => F[B] = map(fa0) _
     flatMap(f)(map(fa0))
   }
+
+  def join[A](ffa: F[F[A]]): F[A] = flatMap(ffa)(identity)
 }
 
 object Monad {
@@ -179,7 +187,10 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
    * 	@group("derived")
    */
   def sequence[G[_]: Applicative, A](fga: F[G[A]]): G[F[A]] =
-    traverse(fga)(ga => ga)
+    traverse(fga)(identity)
+
+  // Monad is actually a bind, less strict...
+  final def traverseM[A, G[_], B](fa: F[A])(f: A => G[F[B]])(implicit G: Applicative[G], F: Monad[F]): G[F[B]] = G.map(G.traverse(fa)(f)(this))(F.join)
 
 }
 
@@ -307,7 +318,7 @@ trait Kleisli[F[_], A, B] {
 
 object Kleisli {
 
-  trait KleisliMonad[F[_], R] extends Monad[({ type l[a] = Kleisli[F, R, a] })#l] {
+  trait KleisliMonad[F[_], R] extends Monad[Kleisli[F, R, ?]] {
     implicit def F: Monad[F]
     override def pure[A](a: A): Kleisli[F, R, A] = kleisli { _ => F.pure(a) }
 
@@ -353,7 +364,7 @@ object State {
     def run(s: S) = f(s)
   }
 
-  trait StateMonad[S] extends Monad[({ type l[a] = State[S, a] })#l] {
+  trait StateMonad[S] extends Monad[State[S, ?]] {
     override def flatMap[A, B](F: State[S, A])(f: (A) => State[S, B]): State[S, B] = F.flatMap(f)
 
     override def pure[A](a: A): State[S, A] = State[S, A](s => (s, a))
@@ -480,6 +491,10 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
       case Some(z) => f(z).run
     })
 
+  def isEmpty(implicit F: Functor[F]): F[Boolean] = mapO(_.isEmpty)
+
+  def get(implicit F: Functor[F]): F[A] = mapO(_.get)
+
   /**
    * This works as an internal helper function to make it easier to rewrite the API of the underlying monad.
    * @param f the function you would like to invoke on the underlying monad
@@ -566,7 +581,7 @@ sealed trait CValidation[A, B] {
 
 object CValidation {
 
-  implicit def cvalidationInstances1[X](implicit SG: Semigroup[X]): Monad[({ type l[a] = CValidation[X, a] })#l] = new Monad[({ type l[a] = CValidation[X, a] })#l] {
+  implicit def cvalidationInstances1[X](implicit SG: Semigroup[X]): Monad[CValidation[X, ?]] = new Monad[CValidation[X, ?]] {
 
     override def flatMap[A, B](F: CValidation[X, A])(f: (A) => CValidation[X, B]): CValidation[X, B] = {
       F.flatMap(f)

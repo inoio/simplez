@@ -12,7 +12,6 @@ object IOExample extends App {
   case object ReadLine extends Console[String]
   case class PutLine(s: String) extends Console[Unit]
 
-  
   type ConsoleIO[A] = Free[Console, A]
   def readLine(): ConsoleIO[String] = Bind(ReadLine, (s: String) => Return[Console, String](s))
   def putLine(s: String): ConsoleIO[Unit] = Bind(PutLine(s), (_: Unit) => Return[Console, Unit](()))
@@ -27,9 +26,9 @@ object IOExample extends App {
   }
 
   val prg: ConsoleIO[Unit] = for {
-    _      <- IOExample.putLine("Enter your name:")
-    name   <- IOExample.readLine()
-    _      <- IOExample.putLine(s"Hello, " + name)
+    _ <- IOExample.putLine("Enter your name:")
+    name <- IOExample.readLine()
+    _ <- IOExample.putLine(s"Hello, " + name)
   } yield ()
 
   val realResult: Unit = prg.foldMap(RealConsole)
@@ -49,7 +48,7 @@ object IOExample extends App {
       })
     }
   }
-  
+
   val initialState = Inout(List("Markus"), List.empty[String])
   val prgState: InoutState[Unit] = prg.runM(TestConsole)
 

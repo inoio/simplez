@@ -1,7 +1,6 @@
 val commonSettings = Seq(
   name := "simplez",
   organization := "inoio",
-  scalaVersion := "2.11.2",
   version := "1.0.0-SNAPSHOT",
   scalacOptions ++= Seq(
     "-feature",
@@ -11,14 +10,19 @@ val commonSettings = Seq(
     "-language:postfixOps",
     "-deprecation"
   ),
-  crossScalaVersions := Seq("2.11.1", "2.10.4"),
-  scalaVersion := "2.11.1"
+  scalaVersion := "2.11.5",
+  autoCompilerPlugins := true,
+  resolvers += "bintray/non" at "http://dl.bintray.com/non/maven",
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.5.2")
 ) ++ scalariformSettings
+
 
 lazy val main = project.in(file("main"))
   .settings(commonSettings: _*)
   .settings(
-    libraryDependencies += "org.specs2" %% "specs2" % "2.3.12" % "test",
+  libraryDependencies ++= Seq(
+    "org.specs2" %% "specs2" % "2.3.12" % "test"
+  ),
     testOptions in Test += Tests.Argument("console", "markdown"),
     EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed,
     sourceGenerators in Compile += Def.task {

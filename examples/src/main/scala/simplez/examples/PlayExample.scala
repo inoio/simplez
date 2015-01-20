@@ -46,25 +46,10 @@ object PlayExample extends App {
   case class ABC(a: Int, b: Int, c: Int)
 
   case object ABC {
-    implicit val abcReads = (
+    implicit val abcReads: Reads[ABC] = (
       (__ \ "a").read[Int] |@|
       (__ \ "b").read[Int] |@|
-      (__ \ "c").read[Int])
+      (__ \ "c").read[Int]) { ABC.apply _ }
   }
-  import ABC._
-  val neu: Reads[ABC] = abcReads.apply { (a, b, c) => ABC.apply(a, b, c) }
-
-  val z = (neu |@| (__ \ "a").read[Int]) { (abc, d) => }
-
-  val monadRead = for {
-    a <- (__ \ "a").read[Int]
-    b <- (__ \ "b").read[Int]
-    c <- (__ \ "c").read[Int]
-  } yield { ABC(a, b, c) }
-
-  val r = (__ \ "a").read[Int]
-  val x: Reads[ABC] = Applicative[Reads].apply3((__ \ "a").read[Int], (__ \ "b").read[Int], (__ \ "c").read[Int]) { ABC.apply _ }
-
-  val x2: Reads[ABC] = Applicative[Reads].ap3((__ \ "a").read[Int], (__ \ "b").read[Int], (__ \ "c").read[Int]) { Reads.pure(ABC.apply _) }
 
 }

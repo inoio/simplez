@@ -64,10 +64,10 @@ package object std {
         fa.foldLeft(F.zero) { case (a, b) => F.append(a, f(b)) }
       }
 
-      override def traverse[G[_]: Applicative, A, B](fa: List[A])(f: (A) => G[B]): G[List[B]] =
-        fa.foldRight(Applicative[G].pure(List[B]())) {
-          (a, fbs) => Applicative[G].apply2(f(a), fbs)(_ :: _)
-        }
+      override def traverse[G[_]: Applicative, A, B](fa: List[A])(f: (A) => G[B]): G[List[B]] = {
+        val emptyListInG: G[List[B]] = Applicative[G].pure(List.empty[B])
+        foldRight(fa, emptyListInG) { (a: A, fbs: G[List[B]]) => Applicative[G].apply2(f(a), fbs)(_ :: _) }
+      }
 
       override def append(a: List[A], b: List[A]): List[A] = a ++ b
 
@@ -82,7 +82,7 @@ package object std {
       override def pure[A](a: A): List[A] = List(a)
     }
 
-    implicit def listTInstance[F[_]](implicit M: Monad[F]) = new Monad[({ type l[a] = ListT[F, a] })#l] {
+    implicit def listTInstance[F[_]](implicit M: Monad[F]) = new Monad[ListT[F, ?]] {
       override def flatMap[A, B](F: ListT[F, A])(f: (A) => ListT[F, B]): ListT[F, B] = F.flatMap(f)
 
       override def pure[A](a: A): ListT[F, A] = ListT[F, A](M.pure(List(a)))
@@ -100,7 +100,7 @@ package object std {
   }
 
   object option {
-    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]] with Foldable[Option] with Applicative[Option] {
+    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]] with Foldable[Option] with Applicative[Option] with Traverse[Option] {
       def zero: Option[A] = None
 
       def append(a: Option[A], b: Option[A]): Option[A] = {
@@ -131,6 +131,13 @@ package object std {
         }
         case None => None
       }
+
+      override def traverse[G[_]: Applicative, A, B](fa: Option[A])(f: (A) => G[B]): G[Option[B]] = {
+        fa match {
+          case None => Applicative[G].pure(None)
+          case Some(a) => Applicative[G].map(f(a))(a => Some(a))
+        }
+      }
     }
 
     implicit def optionInstance1[A] = new Monad[Option] {
@@ -145,7 +152,7 @@ package object std {
       }
   }
 
-  implicit def eitherInstances[X] = new Monad[({ type l[a] = Either[X, a] })#l] {
+  implicit def eitherInstances[X] = new Monad[Either[X, ?]] {
     override def flatMap[A, B](F: Either[X, A])(f: (A) => Either[X, B]): Either[X, B] = F.right.flatMap(f)
 
     override def pure[A](a: A): Either[X, A] = Right(a)
