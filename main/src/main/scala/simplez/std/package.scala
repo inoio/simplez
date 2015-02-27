@@ -53,8 +53,13 @@ package object std {
   }
 
   object list {
-    implicit def listInstance1[A] = new Monoid[List[A]] with Monad[List] with Foldable[List] with Traverse[List] {
+    implicit def listInstance0[A] = new Monoid[List[A]] {
       override def zero: List[A] = List.empty[A]
+
+      override def append(a: List[A], b: List[A]): List[A] = a ++ b
+    }
+
+    implicit val listInstance1 = new Monad[List] with Foldable[List] with Traverse[List] {
 
       /**
        * Map each element of the structure to a [[Monoid]], and combine the\
@@ -68,8 +73,6 @@ package object std {
         val emptyListInG: G[List[B]] = Applicative[G].pure(List.empty[B])
         foldRight(fa, emptyListInG) { (a: A, fbs: G[List[B]]) => Applicative[G].apply2(f(a), fbs)(_ :: _) }
       }
-
-      override def append(a: List[A], b: List[A]): List[A] = a ++ b
 
       override def flatMap[A, B](F: List[A])(f: (A) => List[B]): List[B] = F.flatMap(f)
 
@@ -100,7 +103,7 @@ package object std {
   }
 
   object option {
-    implicit def optionInstances[A: Semigroup] = new Monoid[Option[A]] with Foldable[Option] with Applicative[Option] with Traverse[Option] {
+    implicit def optionInstances0[A: Semigroup] = new Monoid[Option[A]] {
       def zero: Option[A] = None
 
       def append(a: Option[A], b: Option[A]): Option[A] = {
@@ -111,6 +114,9 @@ package object std {
           case _ => zero
         }
       }
+    }
+
+    implicit def optionInstances = new Foldable[Option] with Applicative[Option] with Traverse[Option] with Monad[Option] {
 
       def foldMap[A, B](fa: Option[A])(f: A => B)(implicit M: Monoid[B]): B = fa.map(f).getOrElse(M.zero)
 
@@ -138,12 +144,9 @@ package object std {
           case Some(a) => Applicative[G].map(f(a))(a => Some(a))
         }
       }
-    }
 
-    implicit def optionInstance1[A] = new Monad[Option] {
       override def flatMap[A, B](F: Option[A])(f: (A) => Option[B]): Option[B] = F.flatMap(f)
 
-      override def pure[A](a: A): Option[A] = Some(a): Option[A]
     }
 
     implicit val optionNT: NaturalTransformation[Option, List] =

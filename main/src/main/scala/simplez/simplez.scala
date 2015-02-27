@@ -148,6 +148,11 @@ trait Monad[F[_]] extends Applicative[F] {
   }
 
   def join[A](ffa: F[F[A]]): F[A] = flatMap(ffa)(identity)
+
+  /**
+   * alias for `join`.
+   */
+  def flatten[A](ffa: F[F[A]]): F[A] = join(ffa)
 }
 
 object Monad {
@@ -190,7 +195,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
     traverse(fga)(identity)
 
   // Monad is actually a bind, less strict...
-  final def traverseM[A, G[_], B](fa: F[A])(f: A => G[F[B]])(implicit G: Applicative[G], F: Monad[F]): G[F[B]] = G.map(G.traverse(fa)(f)(this))(F.join)
+  final def traverseM[A, G[_], B](fa: F[A])(f: A => G[F[B]])(implicit G: Applicative[G], F: Monad[F]): G[F[B]] = G.map(G.traverse(fa)(f)(this))(F.flatten)
 
 }
 

@@ -55,7 +55,7 @@ class ListSpec extends Specification {
       }
     }
 
-    "have a traverse instance" in {
+    "have a traverse instance 1" in {
       val T = implicitly[Traverse[List]]
       import scala.concurrent.ExecutionContext.Implicits._
       import scala.concurrent._
@@ -67,6 +67,14 @@ class ListSpec extends Specification {
         val result = Await.result(T.sequence(list), Duration.Inf)
         result should beEqualTo(List(1, 2))
       }
+
+      "and can sequence over a list of options" in {
+        import simplez.std.option._
+        val list: List[Option[Int]] = List(None, Some(3))
+        val result = T.sequence(list)
+        result should beEqualTo(None)
+      }
     }
+
   }
 }
