@@ -66,6 +66,11 @@ package object syntax {
     def F: Functor[F]
 
     def map[B](f: A => B): F[B] = F.map(self)(f)
+
+    def product[A, G[_]: Functor]: Functor[Lambda[a => (F[a], G[a])]] = F.product[G]
+
+    def compose[G[_]: Functor]: Functor[Lambda[a => F[G[a]]]] = F.compose[G]
+
   }
 
   /**
@@ -131,6 +136,23 @@ package object syntax {
     def self: A = a
   }
 
+  trait FoldableSyntax[F[_], A] {
+    def self: F[A]
+
+    def F: Foldable[F]
+
+    def foldRight[B](z: B)(f: (A, B) => B): B = F.foldRight(self, z)(f)
+
+    def foldMap[B](f: A => B)(implicit ev: Monoid[B]): B = F.foldMap(self)(f)
+
+    def fold(implicit ev: Monoid[A]): A = F.foldMap(self)(identity _)
+  }
+
+  implicit def ToFoldableOps[F[_]: Foldable, A](t: F[A]) = {
+    def self: F[A] = t
+    def F: Foldable[F] = implicitly[Foldable[F]]
+  }
+
   /**
    *
    * @param w
@@ -178,6 +200,10 @@ package object syntax {
       val a = self
       val b = b1
     }
+
+    def product[G[_]: Applicative]: Applicative[Lambda[a => (F[a], G[a])]] = F.product[G]
+
+    def compose[G[_]: Applicative]: Applicative[Lambda[a => F[G[a]]]] = F.compose[G]
 
   }
 

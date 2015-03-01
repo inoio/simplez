@@ -56,6 +56,7 @@ object Monoid {
  * @see [[http://en.wikipedia.org/wiki/Functor]]
  */
 trait Functor[F[_]] {
+  self =>
   /**
    * the mapping function.
    * {{{
@@ -67,6 +68,22 @@ trait Functor[F[_]] {
    * Composition: `F[A].map((b => c) compose (a => v)) = F[A].map(a => b).map(b=>c)`
    */
   def map[A, B](F: F[A])(f: A => B): F[B]
+
+  /**
+   *  The product of two Functors F[_] and G[_] is a Functor over (F[_],G[_]).
+   *
+   */
+  def product[G[_]](implicit G: Functor[G]): Functor[Lambda[a => (F[a], G[a])]] = new Functor[Lambda[a => (F[a], G[a])]] {
+    def map[A, B](pA: (F[A], G[A]))(f: A => B): (F[B], G[B]) = {
+      pA match {
+        case (left, right) => (self.map(left)(f), G.map(right)(f))
+      }
+    }
+  }
+
+  def compose[G[_]](implicit G: Functor[G]): Functor[Lambda[a => F[G[a]]]] = new Functor[Lambda[a => F[G[a]]]] {
+    def map[A, B](fgA: F[G[A]])(f: A => B): F[G[B]] = self.map(fgA)(gA => G.map(gA)(f))
+  }
 }
 
 object Functor {
@@ -92,6 +109,7 @@ object ContravariantFunctor {
  * @see [[simplez.syntax.ApplicativeBuilder]] for the famous `|@|` (Admiral Akbhar) operator.
  */
 trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
+  self =>
 
   def pure[A](a: A): F[A]
 
@@ -115,6 +133,18 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
 
   def sequence[A, G[_]: Traverse](as: G[F[A]]): F[G[A]] =
     traverse(as)(a => a)
+
+  def product[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => (F[a], G[a])]] = new Applicative[Lambda[a => (F[a], G[a])]] {
+    def pure[A](a: A): (F[A], G[A]) = (self.pure(a), G.pure(a))
+    def ap[A, B](fgA: => (F[A], G[A]))(f: => (F[A => B], G[A => B])): (F[B], G[B]) = (self.ap(fgA._1)(f._1), G.ap(fgA._2)(f._2))
+  }
+
+  def compose[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => F[G[a]]]] = new Applicative[Lambda[a => F[G[a]]]] {
+    def pure[A](a: A): F[G[A]] = self.pure(G.pure(a))
+    def ap[A, B](fgA: => F[G[A]])(f: => F[G[A => B]]): F[G[B]] = {
+      self.apply2(f, fgA)((ff, ga) => G.ap(ga)(ff))
+    }
+  }
 
 }
 
