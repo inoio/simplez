@@ -37,11 +37,17 @@ object Semigroup {
  * @see [[http://en.wikipedia.org/wiki/Monoid]]
  */
 trait Monoid[A] extends Semigroup[A] {
+  self =>
   /**
    * the identity element.
    * @group("base")
    */
   def zero: A
+
+  def applicative: Applicative[Lambda[a => A]] = new Applicative[Lambda[a => A]] {
+    def pure[A1](a: => A1) = self.zero
+    def ap[A1, B](fa: => A)(f: => A) = self.append(fa, f)
+  }
 }
 
 object Monoid {
@@ -67,7 +73,7 @@ trait Functor[F[_]] {
    * Identity: `F[A].map(x => x) = F[A]`
    * Composition: `F[A].map((b => c) compose (a => v)) = F[A].map(a => b).map(b=>c)`
    */
-  def map[A, B](F: F[A])(f: A => B): F[B]
+  def map[A, B](fa: F[A])(f: A => B): F[B]
 
   /**
    *  The product of two Functors F[_] and G[_] is a Functor over (F[_],G[_]).
@@ -84,6 +90,10 @@ trait Functor[F[_]] {
   def compose[G[_]](implicit G: Functor[G]): Functor[Lambda[a => F[G[a]]]] = new Functor[Lambda[a => F[G[a]]]] {
     def map[A, B](fgA: F[G[A]])(f: A => B): F[G[B]] = self.map(fgA)(gA => G.map(gA)(f))
   }
+
+  def as[A, B](fa: F[A])(b: => B): F[B] = map(fa)(_ => b)
+
+  def void[A](fa: F[A]): F[Unit] = as(fa)(())
 }
 
 object Functor {
@@ -111,7 +121,7 @@ object ContravariantFunctor {
 trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
   self =>
 
-  def pure[A](a: A): F[A]
+  def pure[A](a: => A): F[A]
 
   /**
    * execute a function f with a single parameter within a context F within that context fa : F[A].
@@ -135,12 +145,12 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
     traverse(as)(a => a)
 
   def product[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => (F[a], G[a])]] = new Applicative[Lambda[a => (F[a], G[a])]] {
-    def pure[A](a: A): (F[A], G[A]) = (self.pure(a), G.pure(a))
+    def pure[A](a: => A): (F[A], G[A]) = (self.pure(a), G.pure(a))
     def ap[A, B](fgA: => (F[A], G[A]))(f: => (F[A => B], G[A => B])): (F[B], G[B]) = (self.ap(fgA._1)(f._1), G.ap(fgA._2)(f._2))
   }
 
   def compose[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => F[G[a]]]] = new Applicative[Lambda[a => F[G[a]]]] {
-    def pure[A](a: A): F[G[A]] = self.pure(G.pure(a))
+    def pure[A](a: => A): F[G[A]] = self.pure(G.pure(a))
     def ap[A, B](fgA: => F[G[A]])(f: => F[G[A => B]]): F[G[B]] = {
       self.apply2(f, fgA)((ff, ga) => G.ap(ga)(ff))
     }
@@ -171,10 +181,7 @@ trait Monad[F[_]] extends Applicative[F] {
   }
 
   def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] = {
-    lazy val fa0: F[A] = fa
-    // map(fa0) is a partially applied function
-    val m: (A => B) => F[B] = map(fa0) _
-    flatMap(f)(map(fa0))
+    flatMap(fa)(a => flatMap(f)(g => pure(g(a))))
   }
 
   def join[A](ffa: F[F[A]]): F[A] = flatMap(ffa)(identity)
@@ -227,6 +234,14 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
   // Monad is actually a bind, less strict...
   final def traverseM[A, G[_], B](fa: F[A])(f: A => G[F[B]])(implicit G: Applicative[G], F: Monad[F]): G[F[B]] = G.map(G.traverse(fa)(f)(this))(F.flatten)
 
+  def traverseS[S, G[_]: Applicative, A, B](fa: F[A])(f: A => State[S, G[B]]): State[S, G[F[B]]] = {
+    import State._
+    implicit val A = stateMonad[S].compose[G]
+    State[S, G[F[B]]](s => {
+      val st = traverse[Lambda[a => State[S, G[a]]], A, B](fa)(f)
+      st.run(s)
+    })
+  }
 }
 
 object Traverse {
@@ -355,7 +370,7 @@ object Kleisli {
 
   trait KleisliMonad[F[_], R] extends Monad[Kleisli[F, R, ?]] {
     implicit def F: Monad[F]
-    override def pure[A](a: A): Kleisli[F, R, A] = kleisli { _ => F.pure(a) }
+    override def pure[A](a: => A): Kleisli[F, R, A] = kleisli { _ => F.pure(a) }
 
     override def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] = fa.flatMap(f)
     override def ap[A, B](fa: => Kleisli[F, R, A])(f: => Kleisli[F, R, A => B]): Kleisli[F, R, B] =
@@ -380,18 +395,36 @@ trait State[S, A] {
 
   def eval(initial: S): A = run(initial)._2
 
-  def map[B](f: A => B): State[S, B] = State[S, B] {
+  def map[B](f: A => B): State[S, B] = State {
     s =>
       val (s1, a) = run(s)
       (s1, f(a))
   }
 
-  def flatMap[B](f: A => State[S, B]): State[S, B] = State[S, B] {
+  def flatMap[B](f: A => State[S, B]): State[S, B] = State {
     s =>
       val (s1, a) = run(s)
       val b = f(a)
       b.run(s1)
   }
+
+  def get: State[S, S] = State {
+    s =>
+      val (s1, a) = run(s)
+      (s1, s1)
+  }
+
+  def init = get
+
+  def put(s: S): State[S, Unit] = State { _ => (s, ()) }
+
+  def gets[T](f: S ⇒ T): State[S, T] = for { s <- get } yield (f(s))
+
+  def modify(f: S ⇒ S): State[S, Unit] = for {
+    s <- get
+    _ <- put(s)
+  } yield ()
+
 }
 
 object State {
@@ -402,11 +435,24 @@ object State {
   trait StateMonad[S] extends Monad[State[S, ?]] {
     override def flatMap[A, B](F: State[S, A])(f: (A) => State[S, B]): State[S, B] = F.flatMap(f)
 
-    override def pure[A](a: A): State[S, A] = State[S, A](s => (s, a))
+    override def pure[A](a: => A): State[S, A] = State[S, A](s => (s, a))
+
+    def get: State[S, S] = State { s => (s, s) }
+
+    def init = get
+
+    def put(s: S): State[S, Unit] = State { _ => (s, ()) }
+
+    def gets[T](f: S ⇒ T): State[S, T] = for { s <- get } yield (f(s))
+
+    def modify(f: S ⇒ S): State[S, Unit] = for {
+      s <- get
+      _ <- put(s)
+    } yield ()
 
   }
 
-  implicit def stateInstance[S] = new StateMonad[S] {}
+  implicit def stateMonad[S]: StateMonad[S] = new StateMonad[S] {}
 }
 
 /**
@@ -560,8 +606,7 @@ final case class ListT[F[A], A](run: F[List[A]]) {
     F.flatMap(self.run) {
       case Nil => F.pure(Nil)
       case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
-    }
-  )
+    })
 
   def headOption(implicit F: Functor[F]): F[Option[A]] = mapO(_.headOption)
 
@@ -622,7 +667,7 @@ object CValidation {
       F.flatMap(f)
     }
 
-    override def pure[A](a: A): CValidation[X, A] = CRight(a)
+    override def pure[A](a: => A): CValidation[X, A] = CRight(a)
 
     /**
      * It is required to overwrite ap as we need to keep collecting the results.
@@ -634,3 +679,17 @@ object CValidation {
 final case class CLeft[A, B](run: A) extends CValidation[A, B]
 
 final case class CRight[A, B](run: B) extends CValidation[A, B]
+
+case class Const[M, A](m: M)
+
+object Const {
+  implicit def constInstances[M] = new Functor[Lambda[a => Const[M, a]]] {
+    def map[A, B](fa: Const[M, A])(f: A => B): Const[M, B] = Const[M, B](fa.m)
+  }
+
+  implicit def ConstApplicative[M: Monoid] = new Applicative[Lambda[a => Const[M, a]]] {
+    private val M = implicitly[Monoid[M]]
+    def pure[A](a: => A) = Const[M, A](M.zero)
+    def ap[A, B](fa: => Const[M, A])(f: => Const[M, A => B]): Const[M, B] = Const[M, B](M.append(f.m, fa.m))
+  }
+}

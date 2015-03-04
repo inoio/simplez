@@ -82,13 +82,13 @@ package object std {
           f(head, foldRight(tail, z)(f))
       }
 
-      override def pure[A](a: A): List[A] = List(a)
+      override def pure[A](a: => A): List[A] = List(a)
     }
 
     implicit def listTInstance[F[_]](implicit M: Monad[F]) = new Monad[ListT[F, ?]] {
       override def flatMap[A, B](F: ListT[F, A])(f: (A) => ListT[F, B]): ListT[F, B] = F.flatMap(f)
 
-      override def pure[A](a: A): ListT[F, A] = ListT[F, A](M.pure(List(a)))
+      override def pure[A](a: => A): ListT[F, A] = ListT[F, A](M.pure(List(a)))
     }
   }
 
@@ -96,7 +96,7 @@ package object std {
     implicit def futureInstance(implicit ec: ExecutionContext) = new Monad[Future] {
       override def flatMap[A, B](F: Future[A])(f: (A) => Future[B]): Future[B] = F.flatMap(f)
 
-      override def pure[A](a: A): Future[A] = Future {
+      override def pure[A](a: => A): Future[A] = Future {
         a
       }(ec)
     }
@@ -125,7 +125,7 @@ package object std {
         case Some(head) => f(head, z)
       }
 
-      override def pure[A](a: A): Option[A] = Some(a)
+      override def pure[A](a: => A): Option[A] = Some(a)
 
       /**
        * execute a function f with a single parameter within a context F within that context fa : F[A].
@@ -158,6 +158,6 @@ package object std {
   implicit def eitherInstances[X] = new Monad[Either[X, ?]] {
     override def flatMap[A, B](F: Either[X, A])(f: (A) => Either[X, B]): Either[X, B] = F.right.flatMap(f)
 
-    override def pure[A](a: A): Either[X, A] = Right(a)
+    override def pure[A](a: => A): Either[X, A] = Right(a)
   }
 }

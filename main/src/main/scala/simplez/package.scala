@@ -11,7 +11,7 @@ package object simplez {
 
   object id {
     implicit val idInstance = new Monad[Id] {
-      def pure[A](a: A): Id[A] = a
+      def pure[A](a: => A): Id[A] = a
 
       def flatMap[A, B](F: Id[A])(f: A => Id[B]): Id[B] = f(F)
     }
@@ -27,7 +27,7 @@ package object simplez {
     implicit def monadInstance[X]: Monad[({ type l[a] = Reader[X, a] })#l] = new Monad[({ type l[a] = Reader[X, a] })#l] {
       override def flatMap[A, B](F: Reader[X, A])(f: (A) => Reader[X, B]): Reader[X, B] = flatMap(F)(f)
 
-      override def pure[A](a: A): Reader[X, A] = Reader { x: X => a }
+      override def pure[A](a: => A): Reader[X, A] = Reader { x: X => a }
     }
   }
 

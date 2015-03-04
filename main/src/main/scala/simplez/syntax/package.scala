@@ -23,6 +23,7 @@ package object syntax {
     def |+|(b: A): A = append(b)
 
     def append(b: A): A = F.append(self, b)
+
   }
 
   implicit def ToSemigroupOps[A: Semigroup](a: A): SemigroupSyntax[A] = new SemigroupSyntax[A] {
@@ -67,10 +68,9 @@ package object syntax {
 
     def map[B](f: A => B): F[B] = F.map(self)(f)
 
-    def product[A, G[_]: Functor]: Functor[Lambda[a => (F[a], G[a])]] = F.product[G]
+    def void: F[Unit] = F.void(self)
 
-    def compose[G[_]: Functor]: Functor[Lambda[a => F[G[a]]]] = F.compose[G]
-
+    def as[B](b: => B) = F.as(self)(b)
   }
 
   /**
@@ -98,7 +98,7 @@ package object syntax {
 
     def flatMap[B](f: A => F[B]): F[B] = F.flatMap(self)(f)
 
-    def pure[A](a: A): F[A] = F.pure(a)
+    def pure[A](a: => A): F[A] = F.pure(a)
   }
 
   /**
@@ -164,7 +164,7 @@ package object syntax {
   implicit def writerToMonad[W, A](w: Writer[W, A])(implicit W: Monoid[W]) = new Monad[({ type λ[α] = Writer[W, α] })#λ] {
     override def flatMap[A, B](F: Writer[W, A])(f: (A) => Writer[W, B]): Writer[W, B] = F.flatMap(f)
 
-    override def pure[A](a: A): Writer[W, A] = Writer(W.zero -> a)
+    override def pure[A](a: => A): Writer[W, A] = Writer(W.zero -> a)
   }
 
   /**
@@ -200,10 +200,6 @@ package object syntax {
       val a = self
       val b = b1
     }
-
-    def product[G[_]: Applicative]: Applicative[Lambda[a => (F[a], G[a])]] = F.product[G]
-
-    def compose[G[_]: Applicative]: Applicative[Lambda[a => F[G[a]]]] = F.compose[G]
 
   }
 

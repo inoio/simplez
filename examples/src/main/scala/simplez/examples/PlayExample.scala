@@ -31,7 +31,7 @@ object PlayExample extends App {
   // transform any play applicative into a simplez applicative
   implicit object PlayApplicative2Applicative extends (PlayApplicative ~~> Applicative) {
     def apply[M[_]](F: PlayApplicative[M]): Applicative[M] = new Applicative[M] {
-      def pure[A](a: A) = F.pure(a)
+      def pure[A](a: => A) = F.pure(a)
       def ap[A, B](fa: => M[A])(f: => M[A => B]): M[B] = F.apply(f, fa)
     }
   }
