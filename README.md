@@ -9,3 +9,5 @@ IDE
 ===
 
 Works with eclipse, does not work with IntelliJ
+
+[![Build Status](https://travis-ci.org/inoio/simplez.svg?branch=master)](https://travis-ci.org/inoio/simplez)
