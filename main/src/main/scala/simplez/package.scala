@@ -21,13 +21,16 @@ package object simplez {
     }
   }
 
-  object Reader {
-    def apply[A, B](f: A => B): Reader[A, B] = Kleisli.kleisli[Id, A, B](f)
+  object const {
+    trait ConstApplicativeT[M] extends Applicative[Const[M, ?]] {
+      implicit def M: Monoid[M]
+      override def map[A, B](fa: Const[M, A])(f: A => B): Const[M, B] = Const[M, B](fa.m)
+      def pure[A](a: => A): Const[M, A] = Const[M, A](M.zero)
+      def ap[A, B](fa: => Const[M, A])(f: => Const[M, A => B]): Const[M, B] = Const[M, B](M.append(f.m, fa.m))
+    }
 
-    implicit def monadInstance[X]: Monad[({ type l[a] = Reader[X, a] })#l] = new Monad[({ type l[a] = Reader[X, a] })#l] {
-      override def flatMap[A, B](F: Reader[X, A])(f: (A) => Reader[X, B]): Reader[X, B] = flatMap(F)(f)
-
-      override def pure[A](a: => A): Reader[X, A] = Reader { x: X => a }
+    implicit def ConstApplicative[M](implicit ev: Monoid[M]) = new ConstApplicativeT[M] {
+      implicit def M: Monoid[M] = ev
     }
   }
 

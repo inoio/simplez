@@ -167,6 +167,27 @@ package object syntax {
     override def pure[A](a: => A): Writer[W, A] = Writer(W.zero -> a)
   }
 
+  implicit def ToTraverseOps[F[_]: Traverse, A](a: F[A]) = new TraverseSyntax[F, A] {
+    val self = a
+    val F = Traverse[F]
+  }
+
+  trait TraverseSyntax[F[_], A] {
+    def self: F[A]
+    def F: Traverse[F]
+
+    def contents(): List[A] = F.contents(self)
+    def count(): Int = F.count(self)
+    def shape(): F[Unit] = F.shape(self)
+    def decompose(): (F[Unit], List[A]) = F.decompose(self)
+
+    def reassemble[B](elements: List[B])(implicit ev: A =:= Unit): Option[F[B]] =
+      F.reassemble(self)(elements)
+
+    def collect[G[_]: Applicative, B](f: A => G[Unit])(g: A => B): G[F[B]] =
+      F.collect(self)(f)(g)
+  }
+
   /**
    *
    * @param a
@@ -201,6 +222,9 @@ package object syntax {
       val b = b1
     }
 
+    def compose[G[_]: Applicative]: Applicative[Lambda[a => F[G[a]]]] = F.compose[G]
+
+    def product[G[_]: Applicative]: Applicative[Lambda[a => (F[a], G[a])]] = F.product[G]
   }
 
   /**

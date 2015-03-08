@@ -45,8 +45,8 @@ trait Monoid[A] extends Semigroup[A] {
   def zero: A
 
   def applicative: Applicative[Lambda[a => A]] = new Applicative[Lambda[a => A]] {
-    def pure[A1](a: => A1) = self.zero
-    def ap[A1, B](fa: => A)(f: => A) = self.append(fa, f)
+    def pure[A1](a: => A1): A = self.zero
+    def ap[A1, B](fa: => A)(f: => A): A = self.append(f, fa)
   }
 }
 
@@ -155,7 +155,6 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
       self.apply2(f, fgA)((ff, ga) => G.ap(ga)(ff))
     }
   }
-
 }
 
 object Applicative {
@@ -169,6 +168,7 @@ object Applicative {
  * @see [[http://ncatlab.org/nlab/show/monad+%28in+computer+science%29]]
  */
 trait Monad[F[_]] extends Applicative[F] {
+  self =>
 
   def flatMap[A, B](F: F[A])(f: A => F[B]): F[B]
 
@@ -182,6 +182,10 @@ trait Monad[F[_]] extends Applicative[F] {
 
   def ap[A, B](fa: => F[A])(f: => F[A => B]): F[B] = {
     flatMap(fa)(a => flatMap(f)(g => pure(g(a))))
+    //    for {
+    //      a <- fa
+    //      g <- f
+    //    } yield { pure (g(a))}
   }
 
   def join[A](ffa: F[F[A]]): F[A] = flatMap(ffa)(identity)
@@ -217,7 +221,8 @@ case object Foldable {
   def apply[F[_]](implicit F: Foldable[F]): Foldable[F] = F
 }
 
-trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
+trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
+  self =>
 
   /**
    * @group("base")
@@ -241,6 +246,95 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
       val st = traverse[Lambda[a => State[S, G[a]]], A, B](fa)(f)
       st.run(s)
     })
+  }
+
+  def traverseConst[M: Monoid, A](fa: F[A])(f: A => Const[M, Nothing]): Const[M, F[Nothing]] = {
+    implicit val CApp: Applicative[Const[M, ?]] = const.ConstApplicative[M]
+    traverse[Const[M, ?], A, Nothing](fa)(f)
+  }
+
+  def reduce[A, M: Monoid](fa: F[A])(reducer: A => M): M = {
+    traverseConst(fa)(a => Const[M, Nothing](reducer(a))).m
+  }
+
+  def reduceConst[A, M: Monoid](fa: F[A])(m: M): M = reduce(fa)(_ => m)
+
+  /**
+   * @return a list of the contents of F[A].
+   */
+  def contents[A](fa: F[A]): List[A] = {
+    import std.list._
+    reduce(fa)((a: A) => List(a))
+  }
+
+  /**
+   * Determine the "length" of the structure F[A].
+   */
+  def count[A](fa: F[A]): Int = {
+    reduceConst(fa)(1)(std.anyVal.intInstances)
+  }
+
+  /**
+   *  Discard all values of F[A].
+   *  This is the same as the void function.
+   *  @return F[Unit]
+   */
+  def shape[A](fa: F[A]): F[Unit] = map(fa)((a: A) => ())
+
+  override def void[A](fa: F[A]): F[Unit] = shape(fa)
+
+  def decompose[A](fa: F[A]): (F[Unit], List[A]) = {
+    import id._
+    import const._
+    import std.list._
+    val shape: A => Id[Unit] = a => (())
+    val content: A => Const[List[A], Unit] = a => Const[List[A], Unit](List(a))
+    val product: A => (Id[Unit], Const[List[A], Unit]) = a => (shape(a), content(a))
+
+    implicit val productApp: Applicative[Lambda[a => (Id[a], Const[List[A], a])]] = Applicative[Id].product[Const[List[A], ?]]
+    val result = traverse[Lambda[a => (Id[a], Const[List[A], a])], A, Unit](fa)(product)
+    (result._1, result._2.m)
+  }
+
+  /**
+   * Given a list of contents elements: List[B] reassemble a structure of F[A] (A =:= Unit)
+   * to a structure Option[F[B]] considerung that the list of elements needs to match the structure.
+   */
+  def reassemble[A, B](fa: F[A])(elements: List[B])(implicit ev: A =:= Unit): Option[F[B]] = {
+    import syntax._
+    import std.option._
+    implicit val stateOptionApplicative: Applicative[Lambda[a => State[List[B], Option[a]]]] =
+      State.stateMonad[List[B]].compose[Option]
+    val takeHead: State[List[B], Option[B]] = State {
+      s: List[B] =>
+        s match {
+          case Nil => (Nil, None)
+          case x :: xs => (xs, Some(x))
+        }
+    }
+    traverseS(fa)(a => takeHead).eval(elements)
+  }
+
+  def collect[G[_]: Applicative, A, B](fa: F[A])(f: A => G[Unit])(g: A => B): G[F[B]] = {
+    val applicative = implicitly[Applicative[G]]
+    import applicative._
+    val application = (a: A) => ap(f(a))(pure((u: Unit) => g(a)))
+    self.traverse(fa)(application)
+  }
+
+  def collectS[S, A, B](fa: F[A])(f: A => State[S, Unit])(g: A => B): State[S, F[B]] = {
+    collect[State[S, ?], A, B](fa)(f)(g)
+  }
+
+  def disperse[G[_]: Applicative, A, B, C](fa: F[A])(fb: G[B], g: A => B => C): G[F[C]] = {
+    val applicative = implicitly[Applicative[G]]
+    import applicative._
+    val application: A => G[C] = a => ap(fb)(pure(g(a)))
+    self.traverse(fa)(application)
+  }
+
+  def disperseS[S, A, C](fa: F[A])(fb: State[S, S], g: A => S => C) = {
+    disperse[State[S, ?], A, S, C](fa)(fb, g)
   }
 }
 
@@ -381,8 +475,18 @@ object Kleisli {
     def run(a: A): F[B] = f(a)
   }
 
-  implicit def kleisliInstance[T[_], R](implicit M: Monad[T]): KleisliMonad[T, R] = new KleisliMonad[T, R] {
+  implicit def kleisliMonad[T[_], R](implicit M: Monad[T]): KleisliMonad[T, R] = new KleisliMonad[T, R] {
     override implicit def F: Monad[T] = M
+  }
+}
+
+object Reader {
+  def apply[A, B](f: A => B): Reader[A, B] = Kleisli.kleisli[Id, A, B](f)
+
+  implicit def readerMonad[X]: Monad[Reader[X, ?]] = new Monad[Reader[X, ?]] {
+    override def flatMap[A, B](F: Reader[X, A])(f: (A) => Reader[X, B]): Reader[X, B] = flatMap(F)(f)
+
+    override def pure[A](a: => A): Reader[X, A] = Reader { x: X => a }
   }
 }
 
@@ -682,14 +786,3 @@ final case class CRight[A, B](run: B) extends CValidation[A, B]
 
 case class Const[M, A](m: M)
 
-object Const {
-  implicit def constInstances[M] = new Functor[Lambda[a => Const[M, a]]] {
-    def map[A, B](fa: Const[M, A])(f: A => B): Const[M, B] = Const[M, B](fa.m)
-  }
-
-  implicit def ConstApplicative[M: Monoid] = new Applicative[Lambda[a => Const[M, a]]] {
-    private val M = implicitly[Monoid[M]]
-    def pure[A](a: => A) = Const[M, A](M.zero)
-    def ap[A, B](fa: => Const[M, A])(f: => Const[M, A => B]): Const[M, B] = Const[M, B](M.append(f.m, fa.m))
-  }
-}
