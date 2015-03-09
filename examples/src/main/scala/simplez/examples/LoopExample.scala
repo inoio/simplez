@@ -28,11 +28,10 @@ object LoopExample extends App {
     implicit val counterState: State.StateMonad[Int] = State.stateMonad[Int]
     import counterState._
     val counter = (p: Person) => (for {
-      counter <- get
-      _ <- put(counter + 1)
+      _ <- modify(c => c + 1)
     } yield ())
 
-    Traverse[List].collectS[Int, Person, Person](fa)(counter)(Person.touch _).run(0)
+    fa.collectS[Int, Person](counter)(Person.touch _).run(0)
   }
 
   def label(fa: List[Person]) = {
@@ -44,8 +43,7 @@ object LoopExample extends App {
     } yield n
 
     val labelling: Person => Int => String = person => counter => s"$counter. $person"
-
-    Traverse[List].disperseS[Int, Person, String](fa)(labelCounter, labelling).eval(1)
+    fa.disperseS[Int, String](labelCounter, labelling).eval(1)
   }
 
   println(s"loop: ${loop(list)}")

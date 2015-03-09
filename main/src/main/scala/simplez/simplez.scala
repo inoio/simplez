@@ -526,7 +526,7 @@ trait State[S, A] {
 
   def modify(f: S ⇒ S): State[S, Unit] = for {
     s <- get
-    _ <- put(s)
+    _ <- put(f(s))
   } yield ()
 
 }
@@ -551,7 +551,7 @@ object State {
 
     def modify(f: S ⇒ S): State[S, Unit] = for {
       s <- get
-      _ <- put(s)
+      _ <- put(f(s))
     } yield ()
 
   }

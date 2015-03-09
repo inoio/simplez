@@ -186,6 +186,19 @@ package object syntax {
 
     def collect[G[_]: Applicative, B](f: A => G[Unit])(g: A => B): G[F[B]] =
       F.collect(self)(f)(g)
+
+    def collectS[S, B](f: A => State[S, Unit])(g: A => B): State[S, F[B]] = {
+      F.collect[State[S, ?], A, B](self)(f)(g)
+    }
+
+    def disperse[G[_]: Applicative, B, C](fb: G[B], g: A => B => C): G[F[C]] = {
+      F.disperse(self)(fb, g)
+    }
+
+    def disperseS[S, C](fb: State[S, S], g: A => S => C) = {
+      F.disperse[State[S, ?], A, S, C](self)(fb, g)
+    }
+
   }
 
   /**
