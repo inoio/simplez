@@ -99,6 +99,7 @@ package object std {
       override def pure[A](a: => A): Future[A] = Future {
         a
       }(ec)
+      
     }
   }
 
@@ -155,6 +156,9 @@ package object std {
       }
   }
 
+  /** right based either monad.
+   *  
+   */
   implicit def eitherInstances[X] = new Monad[Either[X, ?]] {
     override def flatMap[A, B](F: Either[X, A])(f: (A) => Either[X, B]): Either[X, B] = F.right.flatMap(f)
 
