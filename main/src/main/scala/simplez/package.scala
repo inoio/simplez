@@ -34,4 +34,30 @@ package object simplez {
     }
   }
 
+  object coproduct {
+    def coproductFunctor[F[_], G[_]](implicit F: Functor[F], G: Functor[G]) = new Functor[Coproduct[F, G, ?]] {
+      def map[A, B](fa: Coproduct[F, G, A])(f: A => B): Coproduct[F, G, B] = {
+        fa.value match {
+          case Left(a) => new Coproduct[F, G, B](Left[F[B], G[B]](F.map(a)(f)))
+          case Right(a) => new Coproduct[F, G, B](Right[F[B], G[B]](G.map(a)(f)))
+        }
+      }
+    }
+
+    implicit def leftInjectInstance[F[_], G[_]]: Inject[F, Coproduct[F, G, ?]] =
+      new Inject[F, Coproduct[F, G, ?]] {
+        def inj[A](fa: F[A]): Coproduct[F, G, A] = Coproduct.injl(fa)
+      }
+
+    //    implicit def rightInjectInstance[F[_], G[_], H[_]](implicit I: Inject[F, G]): Inject[F, Coproduct[H, G, ?]] =
+    //      new Inject[F, Coproduct[H, G, ?]] {
+    //        def inj[A](fa: F[A]): Coproduct[H, G, A] = Coproduct.injr(I.inj(fa))
+    //      }
+
+    implicit def rightInjectInstance[F[_], G[_]]: Inject[G, Coproduct[F, G, ?]] =
+      new Inject[G, Coproduct[F, G, ?]] {
+        def inj[A](fa: G[A]): Coproduct[F, G, A] = Coproduct.injr(fa)
+      }
+  }
+
 }

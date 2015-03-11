@@ -349,8 +349,16 @@ object Traverse {
  * @tparam G
  * @see [[http://en.wikipedia.org/wiki/Natural_transformation]]
  */
-abstract class NaturalTransformation[-F[_], +G[_]] {
+abstract class NaturalTransformation[F[_], G[_]] {
+  self =>
   def apply[A](F: F[A]): G[A]
+
+  def or[H[_]](hg: H ~> G): Coproduct[F, H, ?] ~> G = new NaturalTransformation[Coproduct[F, H, ?], G] {
+    def apply[A](fh: Coproduct[F, H, A]): G[A] = fh.value match {
+      case Left(f) => self.apply(f)
+      case Right(h) => hg.apply(h)
+    }
+  }
 }
 
 object NaturalTransformation {
@@ -392,21 +400,32 @@ sealed trait Free[F[_], A] {
         }
     }
 
-  def runM[G[_]: Monad](f: F ~> G): G[A] = {
-    val G = implicitly[Monad[G]]
-    this match {
-      case Return(a) => G.pure(a)
-      case Bind(r, k) =>
-        G.flatMap(f(r))(k andThen (_.runM(f)))
-    }
-  }
+  /** alias for foldMap. */
+  def runM[G[_]: Monad](f: F ~> G): G[A] = foldMap(f)
 }
 
-final case class Return[F[_], A](a: A)
-  extends Free[F, A]
+final case class Return[F[_], A](a: A) extends Free[F, A]
 
-final case class Bind[F[_], I, A](a: F[I],
-  f: I => Free[F, A]) extends Free[F, A]
+final case class Bind[F[_], I, A](a: F[I], f: I => Free[F, A]) extends Free[F, A]
+
+object Free {
+  def liftF[F[_], A](fa: => F[A])(implicit F: Functor[F]): Free[F, A] = Bind(fa, (a: A) => Return[F, A](a))
+}
+
+class Coproduct[F[_], G[_], A](val value: Either[F[A], G[A]])
+
+object Coproduct {
+  def injl[F[_], G[_], A](value: F[A]) = new Coproduct[F, G, A](Left(value))
+  def injr[F[_], G[_], A](value: G[A]) = new Coproduct[F, G, A](Right(value))
+
+  // def apply[C <: Coproduct[_,_,_], T](t: T)(implicit inj: Inject[C, T]): C = inj.inj(t)
+  def apply[I[_], F[_], G[_], A](i: I[A])(implicit inj: Inject[I, Coproduct[F, G, ?]]) = inj.inj(i)
+
+}
+
+trait Inject[F[_], G[_]] {
+  def inj[A](fa: F[A]): G[A]
+}
 
 /**
  *

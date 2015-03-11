@@ -21,7 +21,6 @@ lazy val main = project.in(file("main"))
   .settings(commonSettings: _*)
   .settings(
   libraryDependencies ++= Seq(
-    "com.chuusai" %% "shapeless" % "2.0.0",
     "org.specs2" %% "specs2" % "2.3.12" % "test"
   ),
     testOptions in Test += Tests.Argument("console", "markdown"),
@@ -38,7 +37,8 @@ lazy val main = project.in(file("main"))
 
 
 val exampleDependencies = Seq(
-  "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1"
+  "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1",
+  "com.chuusai" %% "shapeless" % "2.1.0"
 )
 
 lazy val examples = project.in(file("examples"))
