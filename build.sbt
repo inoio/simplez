@@ -38,7 +38,7 @@ lazy val main = project.in(file("main"))
 
 val exampleDependencies = Seq(
   "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1",
-  "com.chuusai" %% "shapeless" % "2.1.0"
+  "org.typelevel" %% "shapeless-scalaz" % "0.3"
 )
 
 lazy val examples = project.in(file("examples"))
