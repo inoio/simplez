@@ -71,7 +71,7 @@ package object std {
 
       override def traverse[G[_]: Applicative, A, B](fa: List[A])(f: (A) => G[B]): G[List[B]] = {
         val emptyListInG: G[List[B]] = Applicative[G].pure(List.empty[B])
-        foldRight(fa, emptyListInG) { (a: A, fbs: G[List[B]]) => Applicative[G].apply2(f(a), fbs)(_ :: _) }
+        foldRight(fa, emptyListInG) { (a: A, fbs: G[List[B]]) => Applicative[G].apply2(f(a), fbs)(_ +: _) }
       }
 
       override def flatMap[A, B](F: List[A])(f: (A) => List[B]): List[B] = F.flatMap(f)
@@ -99,6 +99,13 @@ package object std {
       override def pure[A](a: => A): Future[A] = Future {
         a
       }(ec)
+
+      override def ap[A, B](F: => Future[A])(f: => Future[A => B]): Future[B] = {
+        for {
+          fut <- F
+          g <- f
+        } yield { g(fut) }
+      }
 
     }
   }

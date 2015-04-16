@@ -22,7 +22,7 @@ package object simplez {
   }
 
   object const {
-    trait ConstApplicativeT[M] extends Applicative[Const[M, ?]] {
+    trait ConstApplicativeT[M] extends Applicative[Lambda[a => Const[M, a]]] {
       implicit def M: Monoid[M]
       override def map[A, B](fa: Const[M, A])(f: A => B): Const[M, B] = Const[M, B](fa.m)
       def pure[A](a: => A): Const[M, A] = Const[M, A](M.zero)

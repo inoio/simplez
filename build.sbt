@@ -21,7 +21,7 @@ lazy val main = project.in(file("main"))
   .settings(commonSettings: _*)
   .settings(
   libraryDependencies ++= Seq(
-    "org.specs2" %% "specs2" % "2.3.12" % "test"
+    "org.specs2" %% "specs2" % "2.4" % "test"
   ),
     testOptions in Test += Tests.Argument("console", "markdown"),
     EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed,
@@ -38,7 +38,8 @@ lazy val main = project.in(file("main"))
 
 val exampleDependencies = Seq(
   "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1",
-  "org.typelevel" %% "shapeless-scalaz" % "0.3"
+  "org.typelevel" %% "shapeless-scalaz" % "0.3",
+   "org.specs2" %% "specs2" % "2.4" % "test"
 )
 
 lazy val examples = project.in(file("examples"))

@@ -1,6 +1,12 @@
 package simplez
 
-import scala.language.{ higherKinds, implicitConversions }
+import scala.Left
+import scala.Right
+import scala.language.higherKinds
+import scala.language.implicitConversions
+
+import std.list.listInstance0
+import std.option.optionInstances
 
 /**
  * A Semigroup defines an associative binary function.
@@ -36,17 +42,21 @@ object Semigroup {
  * @tparam A the type of the monoid.
  * @see [[http://en.wikipedia.org/wiki/Monoid]]
  */
-trait Monoid[A] extends Semigroup[A] {
+trait Monoid[F] extends Semigroup[F] {
   self =>
   /**
    * the identity element.
    * @group("base")
    */
-  def zero: A
+  def zero: F
 
-  def applicative: Applicative[Lambda[a => A]] = new Applicative[Lambda[a => A]] {
-    def pure[A1](a: => A1): A = self.zero
-    def ap[A1, B](fa: => A)(f: => A): A = self.append(f, fa)
+  def applicative: Applicative[Lambda[a => F]] = new Applicative[Lambda[a => F]] {
+    // mapping just returns ourselves
+    override def map[A, B](fa: F)(f: A => B): F = fa
+    // putting any value into this Applicative will put the Monoid.zero in it
+    def pure[A](a: => A): F = self.zero
+    // Applying this Applicative combines each value with the append function.
+    def ap[A, B](fa: => F)(f: => F): F = self.append(f, fa)
   }
 }
 
@@ -298,7 +308,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
 
   /**
    * Given a list of contents elements: List[B] reassemble a structure of F[A] (A =:= Unit)
-   * to a structure Option[F[B]] considerung that the list of elements needs to match the structure.
+   * to a structure Option[F[B]] considering that the list of elements needs to match the structure.
    */
   def reassemble[A, B](fa: F[A])(elements: List[B])(implicit ev: A =:= Unit): Option[F[B]] = {
     import syntax._
@@ -315,26 +325,24 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
     traverseS(fa)(a => takeHead).eval(elements)
   }
 
-  def collect[G[_]: Applicative, A, B](fa: F[A])(f: A => G[Unit])(g: A => B): G[F[B]] = {
-    val applicative = implicitly[Applicative[G]]
-    import applicative._
-    val application = (a: A) => ap(f(a))(pure((u: Unit) => g(a)))
-    self.traverse(fa)(application)
+  def collect[G[_]: Applicative, A, B](fa: F[A])(f: A => G[Unit], g: A => B): G[F[B]] = {
+    val G = implicitly[Applicative[G]]
+    val applicationFn: A => G[B] = a => G.ap(f(a))(G.pure((u: Unit) => g(a)))
+    self.traverse(fa)(applicationFn)
   }
 
-  def collectS[S, A, B](fa: F[A])(f: A => State[S, Unit])(g: A => B): State[S, F[B]] = {
-    collect[State[S, ?], A, B](fa)(f)(g)
+  def collectS[S, A, B](fa: F[A])(f: A => State[S, Unit], g: A => B): State[S, F[B]] = {
+    collect[Lambda[a => State[S, a]], A, B](fa)(f, g)
   }
 
   def disperse[G[_]: Applicative, A, B, C](fa: F[A])(fb: G[B], g: A => B => C): G[F[C]] = {
-    val applicative = implicitly[Applicative[G]]
-    import applicative._
-    val application: A => G[C] = a => ap(fb)(pure(g(a)))
-    self.traverse(fa)(application)
+    val G = implicitly[Applicative[G]]
+    val applicationFn: A => G[C] = a => G.ap(fb)(G.pure(g(a)))
+    self.traverse(fa)(applicationFn)
   }
 
-  def disperseS[S, A, C](fa: F[A])(fb: State[S, S], g: A => S => C) = {
-    disperse[State[S, ?], A, S, C](fa)(fb, g)
+  def disperseS[S, A, C](fa: F[A])(fb: State[S, S], g: A => S => C): State[S, F[C]] = {
+    disperse[Lambda[a => State[S, a]], A, S, C](fa)(fb, g)
   }
 }
 

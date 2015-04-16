@@ -176,19 +176,24 @@ package object syntax {
     def self: F[A]
     def F: Traverse[F]
 
+    def traverse[G[_]: Applicative, B](f: A => G[B]): G[F[B]] = F.traverse(self)(f)
+
     def contents(): List[A] = F.contents(self)
+
     def count(): Int = F.count(self)
+
     def shape(): F[Unit] = F.shape(self)
+
     def decompose(): (F[Unit], List[A]) = F.decompose(self)
 
     def reassemble[B](elements: List[B])(implicit ev: A =:= Unit): Option[F[B]] =
       F.reassemble(self)(elements)
 
     def collect[G[_]: Applicative, B](f: A => G[Unit])(g: A => B): G[F[B]] =
-      F.collect(self)(f)(g)
+      F.collect(self)(f, g)
 
     def collectS[S, B](f: A => State[S, Unit])(g: A => B): State[S, F[B]] = {
-      F.collect[State[S, ?], A, B](self)(f)(g)
+      F.collect[Lambda[a => State[S, a]], A, B](self)(f, g)
     }
 
     def disperse[G[_]: Applicative, B, C](fb: G[B], g: A => B => C): G[F[C]] = {
@@ -196,7 +201,7 @@ package object syntax {
     }
 
     def disperseS[S, C](fb: State[S, S], g: A => S => C) = {
-      F.disperse[State[S, ?], A, S, C](self)(fb, g)
+      F.disperse[Lambda[a => State[S, a]], A, S, C](self)(fb, g)
     }
 
   }

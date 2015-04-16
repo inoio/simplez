@@ -1,6 +1,7 @@
 package simplez.examples
 import simplez._
 import simplez.std.list._
+import simplez.std.anyVal._
 import simplez.syntax._
 import simplez.syntax.ApplicativeSyntax
 
@@ -13,11 +14,31 @@ object TreeExample extends App {
 
   def sum(tree: BinTree[Int], initial: Int): Int = Foldable[BinTree].foldRight(tree, 0)((value, initial) => value + initial)
 
+  val stateMonad = State.stateMonad[Int]
+  import stateMonad._
+  val (count, newTree) = tree.collectS(i => for { count <- get; _ <- put(count + 1) } yield ())(i => i + 1).run(0)
+
+  val label: State[Int, Int] = for { label <- get; _ <- put(label + 1) } yield (label)
+  val (_, tree2) = tree.disperseS(label, (i: Int) => (l: Int) => (l.toString, i)).run(100)
+
   println(s"sum : ${sum(tree, 0)}")
   println(s"contents : ${tree.contents()}")
   println(s"count : ${tree.count()}")
   println(s"shape: ${tree.shape()}")
   println(s"decompose: ${tree.decompose()}")
+  println(s"collect: $count, $newTree")
+  println(s"label: $tree2")
+
+  // Filter elements with value 2 or 3 and count how many we have
+  val elementCount = Monoid[Int].applicative
+  // preserve these elements
+  val lister = Monoid[List[Int]].applicative
+  val app = elementCount.product[Lambda[a => List[Int]]](lister)
+
+  def twoOrThree(i: Int) = if (i == 2 || i == 3) 1 else 0
+  val (filteredCount, result) = app.traverse(tree)(i => (twoOrThree(i), if (twoOrThree(i) == 1) List(i) else List()))
+  println(s"filtered count $filteredCount, result : $result")
+
 }
 
 sealed trait BinTree[A]
