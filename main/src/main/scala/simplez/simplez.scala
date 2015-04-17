@@ -160,7 +160,14 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
   }
 
   def compose[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => F[G[a]]]] = new Applicative[Lambda[a => F[G[a]]]] {
+    /**
+     *
+     */
     def pure[A](a: => A): F[G[A]] = self.pure(G.pure(a))
+
+    /**
+     *
+     */
     def ap[A, B](fgA: => F[G[A]])(f: => F[G[A => B]]): F[G[B]] = {
       self.apply2(f, fgA)((ff, ga) => G.ap(ga)(ff))
     }

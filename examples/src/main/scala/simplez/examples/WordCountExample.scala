@@ -3,13 +3,17 @@ package simplez.examples
 // from the scalaz examples
 // Essence of the iterator pattern, Gibbons & Oliveira
 object WordCountExample extends App {
-
+  import scala.concurrent.Future
+  import scala.concurrent.ExecutionContext.Implicits.global
   import simplez._
   import simplez.std.anyVal._
   import simplez.std.list._
+  import simplez.std.future._
+  import simplez.std.option._
   import simplez.syntax._
 
   def test(b: Boolean): Int = if (b) 1 else 0
+
   //char count            11111111111111.....
   //line count            0000000000000000001 0000000000000001
   //word count            1000100010010001....
@@ -21,28 +25,34 @@ object WordCountExample extends App {
     (cur, test(cur && !prev))
   }
 
-  // To count, we traverse with a function returning 0 or 1, and sum the results
-  // with Monoid[Int], packaged in a constant monoidal applicative functor.
+  val stateApplicative: Applicative[Lambda[a => State[Boolean, a]]] = State.stateMonad[Boolean]
+
+  // char count
   val Count: Applicative[Lambda[a => Int]] = Monoid[Int].applicative
+  val charResult: Int = Count.traverse(text)(_ => 1)
+  println(s"$charResult  == ${text.length}")
 
-  // Compose the applicative instance for [a]State[Boolean,a] with the Count applicative
-  val WordCount: Applicative[Lambda[a => State[Boolean, Int]]] = State.stateMonad[Boolean].compose[Lambda[a => Int]](Count)
+  // line count
+  val lineResult: Int = Count.traverse(text)(c => if (c == '\n') 1 else 0)
+  println(s"$lineResult")
 
-  // Fuse the three applicatives together in parallel...
-  implicit val AppCharLinesWord: Applicative[Lambda[a => ((Int, Int), State[Boolean, Int])]] =
-    Count // char count
-      .product[Lambda[a => Int]](Count) // line count
-      .product[Lambda[a => State[Boolean, Int]]](WordCount) // word count
+  // product of char count, line count
+  val charLineCount: Applicative[Lambda[a => (Int, Int)]] = Count.product[Lambda[a => Int]](Count)
+  val (cc, lc) = charLineCount.traverse(text)(c => (1, if (c == '\n') 1 else 0))
+  println(s"$cc, $lc")
 
-  // ... and execute them in a single traversal
-  val ((charCount1, lineCount1), wordCountState1) = Traverse[List].traverse[Lambda[a => ((Int, Int), State[Boolean, Int])], Char, ((Int, Int), State[Boolean, Int])](text)((c: Char) => ((1, test(c == '\n')), atWordStart(c)))
-  val ((charCount2, lineCount2), wordCountState2) = text.traverse[Lambda[a => ((Int, Int), State[Boolean, Int])], ((Int, Int), State[Boolean, Int])]((c: Char) => ((1, test(c == '\n')), atWordStart(c)))
-  val ((charCount, lineCount), wordCountState) = AppCharLinesWord.traverse(text)((c: Char) => ((1, test(c == '\n')), atWordStart(c)))
-  val wordCount: Int = wordCountState.eval(false)
+  // word count
+  // step 1 => State[Boolean, List[Int]]
+  val wordCountA: Applicative[Lambda[a => State[Boolean, Int]]] = stateApplicative.compose[Lambda[a => Int]](Count)
+  val (_, listOfInts: List[Int]) = stateApplicative.traverse(text)(atWordStart).run(false)
 
-  println("lines: %d\twords: %d\tchars: %d\t".format(lineCount, wordCount, charCount)) // 2        9       35
+  // step 2 : compose directly   
+  val wordCount: Applicative[Lambda[a => State[Boolean, Int]]] = stateApplicative.compose[Lambda[a => Int]](Count).compose[Lambda[a => Int]](Count)
+  val word = wordCount.traverse(text)(atWordStart).run(false)
+  println(wordCount)
 
-  val StateWordCount = WordCount.traverse(text)(c => atWordStart(c))
-  StateWordCount.eval(false)
-
+  // product of char count, line count and word count
+  val Final = Count.product[Lambda[a => Int]](Count).product[Lambda[a => State[Boolean, Int]]](wordCount)
+  val ((ccF, lcF), wcF) = Final.traverse(text)(c => ((1 -> test(c == '\n')) -> atWordStart(c)))
+  val wcFF = wcF.run(false)
 }

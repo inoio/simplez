@@ -9,6 +9,10 @@ object TreeExample extends App {
 
   import BinTree._
   val tree: BinTree[Int] = Bin(Bin(Leaf(1), Leaf(2)), Leaf(5))
+  val fnTree: BinTree[Int => Int] = Bin(Bin(Leaf(_ + 1), Leaf(_ - 1000)), Leaf(_ => 0))
+
+  val questionMark = Applicative[BinTree].ap(tree)(fnTree)
+  println(questionMark)
   println(s"Tree: $tree")
   println(s"map _ * 3: ${tree.map(_ * 3)}")
 

@@ -24,7 +24,6 @@ lazy val main = project.in(file("main"))
     "org.specs2" %% "specs2" % "2.4" % "test"
   ),
     testOptions in Test += Tests.Argument("console", "markdown"),
-    EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Managed,
     sourceGenerators in Compile += Def.task {
       val result : Seq[(String, String)] = SimplezGenerator.makeSomeSources()
       result.map{case (name, content) =>
