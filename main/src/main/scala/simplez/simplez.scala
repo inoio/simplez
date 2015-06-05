@@ -8,6 +8,21 @@ import scala.language.implicitConversions
 import std.list.listInstance0
 import std.option.optionInstances
 
+trait Category[=>:[_, _]] {
+  self =>
+  def id[A]: A =>: A
+  def compose[A, B, C](g: B =>: C, f: A =>: B): A =>: C
+
+  final def semigroup[A]: Semigroup[A =>: A] = new Semigroup[=>:[A, A]] {
+    def append(a: A =>: A, b: A =>: A) = self.compose(a, b)
+  }
+
+  final def monoid[A]: Monoid[A =>: A] = new Monoid[A =>: A] {
+    def append(a: A =>: A, b: A =>: A) = self.compose(a, b)
+    def zero = id
+  }
+}
+
 /**
  * A Semigroup defines an associative binary function.
  *
@@ -39,7 +54,7 @@ object Semigroup {
  * === Law ===
  * Identity : mzero append a = a
  *
- * @tparam A the type of the monoid.
+ * @tparam F the type of the monoid.
  * @see [[http://en.wikipedia.org/wiki/Monoid]]
  */
 trait Monoid[F] extends Semigroup[F] {
@@ -50,13 +65,18 @@ trait Monoid[F] extends Semigroup[F] {
    */
   def zero: F
 
-  def applicative: Applicative[Lambda[a => F]] = new Applicative[Lambda[a => F]] {
+  def applicative: Applicative[λ[α => F]] = new Applicative[λ[α => F]] {
     // mapping just returns ourselves
     override def map[A, B](fa: F)(f: A => B): F = fa
     // putting any value into this Applicative will put the Monoid.zero in it
     def pure[A](a: => A): F = self.zero
     // Applying this Applicative combines each value with the append function.
     def ap[A, B](fa: => F)(f: => F): F = self.append(f, fa)
+  }
+
+  final def category: Category[λ[(α, β) => F]] = new Category[λ[(α, β) => F]] {
+    def compose[A, B, C](g: F, f: F) = append(g, f)
+    def id[A] = zero
   }
 }
 
@@ -89,7 +109,7 @@ trait Functor[F[_]] {
    *  The product of two Functors F[_] and G[_] is a Functor over (F[_],G[_]).
    *
    */
-  def product[G[_]](implicit G: Functor[G]): Functor[Lambda[a => (F[a], G[a])]] = new Functor[Lambda[a => (F[a], G[a])]] {
+  def product[G[_]](implicit G: Functor[G]): Functor[λ[α => (F[α], G[α])]] = new Functor[λ[α => (F[α], G[α])]] {
     def map[A, B](pA: (F[A], G[A]))(f: A => B): (F[B], G[B]) = {
       pA match {
         case (left, right) => (self.map(left)(f), G.map(right)(f))
@@ -97,7 +117,7 @@ trait Functor[F[_]] {
     }
   }
 
-  def compose[G[_]](implicit G: Functor[G]): Functor[Lambda[a => F[G[a]]]] = new Functor[Lambda[a => F[G[a]]]] {
+  def compose[G[_]](implicit G: Functor[G]): Functor[λ[α => F[G[α]]]] = new Functor[λ[α => F[G[α]]]] {
     def map[A, B](fgA: F[G[A]])(f: A => B): F[G[B]] = self.map(fgA)(gA => G.map(gA)(f))
   }
 
@@ -154,12 +174,12 @@ trait Applicative[F[_]] extends Functor[F] with GenApApplyFunctions[F] {
   def sequence[A, G[_]: Traverse](as: G[F[A]]): F[G[A]] =
     traverse(as)(a => a)
 
-  def product[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => (F[a], G[a])]] = new Applicative[Lambda[a => (F[a], G[a])]] {
+  def product[G[_]](implicit G: Applicative[G]): Applicative[λ[α => (F[α], G[α])]] = new Applicative[λ[α => (F[α], G[α])]] {
     def pure[A](a: => A): (F[A], G[A]) = (self.pure(a), G.pure(a))
     def ap[A, B](fgA: => (F[A], G[A]))(f: => (F[A => B], G[A => B])): (F[B], G[B]) = (self.ap(fgA._1)(f._1), G.ap(fgA._2)(f._2))
   }
 
-  def compose[G[_]](implicit G: Applicative[G]): Applicative[Lambda[a => F[G[a]]]] = new Applicative[Lambda[a => F[G[a]]]] {
+  def compose[G[_]](implicit G: Applicative[G]): Applicative[λ[α => F[G[α]]]] = new Applicative[λ[α => F[G[α]]]] {
     /**
      *
      */
@@ -260,7 +280,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
     import State._
     implicit val A = stateMonad[S].compose[G]
     State[S, G[F[B]]](s => {
-      val st = traverse[Lambda[a => State[S, G[a]]], A, B](fa)(f)
+      val st = traverse[λ[α => State[S, G[α]]], A, B](fa)(f)
       st.run(s)
     })
   }
@@ -308,8 +328,8 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
     val content: A => Const[List[A], Unit] = a => Const[List[A], Unit](List(a))
     val product: A => (Id[Unit], Const[List[A], Unit]) = a => (shape(a), content(a))
 
-    implicit val productApp: Applicative[Lambda[a => (Id[a], Const[List[A], a])]] = Applicative[Id].product[Const[List[A], ?]]
-    val result = traverse[Lambda[a => (Id[a], Const[List[A], a])], A, Unit](fa)(product)
+    implicit val productApp: Applicative[λ[α => (Id[α], Const[List[A], α])]] = Applicative[Id].product[Const[List[A], ?]]
+    val result = traverse[λ[α => (Id[α], Const[List[A], α])], A, Unit](fa)(product)
     (result._1, result._2.m)
   }
 
@@ -320,7 +340,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
   def reassemble[A, B](fa: F[A])(elements: List[B])(implicit ev: A =:= Unit): Option[F[B]] = {
     import syntax._
     import std.option._
-    implicit val stateOptionApplicative: Applicative[Lambda[a => State[List[B], Option[a]]]] =
+    implicit val stateOptionApplicative: Applicative[λ[α => State[List[B], Option[α]]]] =
       State.stateMonad[List[B]].compose[Option]
     val takeHead: State[List[B], Option[B]] = State {
       s: List[B] =>
@@ -339,7 +359,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
   }
 
   def collectS[S, A, B](fa: F[A])(f: A => State[S, Unit], g: A => B): State[S, F[B]] = {
-    collect[Lambda[a => State[S, a]], A, B](fa)(f, g)
+    collect[λ[α => State[S, α]], A, B](fa)(f, g)
   }
 
   def disperse[G[_]: Applicative, A, B, C](fa: F[A])(fb: G[B], g: A => B => C): G[F[C]] = {
@@ -349,7 +369,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
   }
 
   def disperseS[S, A, C](fa: F[A])(fb: State[S, S], g: A => S => C): State[S, F[C]] = {
-    disperse[Lambda[a => State[S, a]], A, S, C](fa)(fb, g)
+    disperse[λ[α => State[S, α]], A, S, C](fa)(fb, g)
   }
 }
 

@@ -13,7 +13,7 @@ val commonSettings = Seq(
   scalaVersion := "2.11.6",
   autoCompilerPlugins := true,
   resolvers += "bintray/non" at "http://dl.bintray.com/non/maven",
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.5.2")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.5.4")
 ) ++ scalariformSettings
 
 
