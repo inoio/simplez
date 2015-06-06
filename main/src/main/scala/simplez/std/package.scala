@@ -12,25 +12,30 @@ package object std {
     implicit val byteInstances = new Monoid[Byte] {
       def zero: Byte = 0
 
-      def append(a: Byte, b: Byte): Byte = (a + b).toByte
+      def append(a: Byte, b: => Byte): Byte = (a + b).toByte
     }
 
     implicit val shortInstances = new Monoid[Short] {
       def zero: Short = 0
 
-      def append(a: Short, b: Short): Short = (a + b).toShort
+      def append(a: Short, b: => Short): Short = (a + b).toShort
     }
 
     implicit val intInstances = new Monoid[Int] {
       def zero: Int = 0
 
-      def append(a: Int, b: Int): Int = a + b
+      def append(a: Int, b: => Int): Int = a + b
     }
 
     implicit val longInstances = new Monoid[Long] {
       def zero: Long = 0L
 
-      def append(a: Long, b: Long): Long = a + b
+      def append(a: Long, b: => Long): Long = a + b
+    }
+
+    implicit val unitInstances = new Monoid[Unit] {
+      def zero: Unit = ()
+      def append(a: Unit, b: => Unit): Unit = ()
     }
 
     /**
@@ -39,7 +44,7 @@ package object std {
     implicit val boolInstances = new Monoid[Boolean] {
       def zero = true
 
-      def append(a: Boolean, b: Boolean) = a && b
+      def append(a: Boolean, b: => Boolean) = a && b
     }
   }
 
@@ -47,7 +52,7 @@ package object std {
     implicit val stringInstances = new Monoid[String] {
       override def zero: String = ""
 
-      override def append(a: String, b: String): String = a + b
+      override def append(a: String, b: => String): String = a + b
 
     }
   }
@@ -56,7 +61,7 @@ package object std {
     implicit def listInstance0[A] = new Monoid[List[A]] {
       override def zero: List[A] = List.empty[A]
 
-      override def append(a: List[A], b: List[A]): List[A] = a ++ b
+      override def append(a: List[A], b: => List[A]): List[A] = a ++ b
     }
 
     implicit val listInstance1 = new Monad[List] with Foldable[List] with Traverse[List] {
@@ -114,7 +119,7 @@ package object std {
     implicit def optionInstances0[A: Semigroup] = new Monoid[Option[A]] {
       def zero: Option[A] = None
 
-      def append(a: Option[A], b: Option[A]): Option[A] = {
+      def append(a: Option[A], b: => Option[A]): Option[A] = {
         (a, b) match {
           case (Some(a1), Some(b1)) => Some(Semigroup[A].append(a1, b1))
           case (Some(_), _) => a
@@ -163,13 +168,44 @@ package object std {
       }
   }
 
-  /**
-   * right based either monad.
-   *
-   */
-  implicit def eitherInstances[X] = new Monad[Either[X, ?]] {
-    override def flatMap[A, B](F: Either[X, A])(f: (A) => Either[X, B]): Either[X, B] = F.right.flatMap(f)
+  object either {
+    /**
+     * right based either monad.
+     *
+     */
+    implicit def eitherInstances[X] = new Monad[Either[X, ?]] {
+      override def flatMap[A, B](F: Either[X, A])(f: (A) => Either[X, B]): Either[X, B] = F.right.flatMap(f)
 
-    override def pure[A](a: => A): Either[X, A] = Right(a)
+      override def pure[A](a: => A): Either[X, A] = Right(a)
+
+    }
+    implicit def eitherSemigroup[A, B](implicit SA: Semigroup[A], SB: Semigroup[B]) = new Semigroup[Either[A, B]] {
+      def append(a: Either[A, B], b: => Either[A, B]): Either[A, B] = {
+        (a, b) match {
+          case (Left(a), Left(b)) => Left(SA.append(a, b))
+          case (Left(a), Right(_)) => Left(a)
+          case (Right(a), Right(b)) => Right(SB.append(a, b))
+          case (Right(_), Left(b)) => Left(b)
+        }
+
+      }
+    }
+  }
+
+  object function {
+    implicit val function1Instances = new Category[Function1] {
+      def compose[A, B, C](g: B => C, f: A => B): A => C = g compose f
+      def id[A] = a => a
+    }
+
+    implicit def functionMonoid[A] = new Monoid[A => A] {
+      def append(a: A => A, b: => A => A): A => A = a andThen b
+      def zero = a => a
+    }
+
+    implicit def functionMonoid[I, O](implicit M: Monoid[O]) = new Monoid[I => O] {
+      def append(a: I => O, b: => I => O): I => O = x => M.append(a(x), b(x))
+      def zero = a => M.zero
+    }
   }
 }

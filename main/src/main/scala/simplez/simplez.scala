@@ -14,11 +14,11 @@ trait Category[=>:[_, _]] {
   def compose[A, B, C](g: B =>: C, f: A =>: B): A =>: C
 
   final def semigroup[A]: Semigroup[A =>: A] = new Semigroup[=>:[A, A]] {
-    def append(a: A =>: A, b: A =>: A) = self.compose(a, b)
+    def append(a: A =>: A, b: => A =>: A) = self.compose(a, b)
   }
 
   final def monoid[A]: Monoid[A =>: A] = new Monoid[A =>: A] {
-    def append(a: A =>: A, b: A =>: A) = self.compose(a, b)
+    def append(a: A =>: A, b: => A =>: A) = self.compose(a, b)
     def zero = id
   }
 }
@@ -41,7 +41,7 @@ trait Semigroup[A] {
    * The associative binary function.
    * @group("base")
    */
-  def append(a: A, b: A): A
+  def append(a: A, b: => A): A
 }
 
 object Semigroup {

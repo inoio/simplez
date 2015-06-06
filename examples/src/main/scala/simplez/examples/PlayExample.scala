@@ -13,7 +13,7 @@ object PlayExample extends App {
   implicit object PlayMonoid2Monoid extends (PlayMonoid ~> Monoid) {
     def apply[A](playM: PlayMonoid[A]): Monoid[A] = new Monoid[A] {
       def zero: A = playM.identity
-      def append(a: A, b: A): A = playM.append(a, b)
+      def append(a: A, b: => A): A = playM.append(a, b)
     }
   }
 
@@ -37,7 +37,7 @@ object PlayExample extends App {
   }
 
   // transform any concrete play applicative instance into a simplez applicative instance
-  // using a higher kinded "natural transformat" ~~>
+  // using a higher kinded "natural transformation" ~~>
   implicit def playApplicative2Applicative[F[_]](implicit P: PlayApplicative[F],
     ev: PlayApplicative ~~> Applicative): Applicative[F] = {
     ev(P)
