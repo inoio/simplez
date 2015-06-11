@@ -472,44 +472,44 @@ trait Kleisli[F[_], A, B] {
   def run(a: A): F[B]
 
   /** `andThen` two Kleisli's. */
-  def andThen[C](k: Kleisli[F, B, C])(implicit b: Monad[F]): Kleisli[F, A, C] =
-    kleisli((a: A) => b.flatMap(this.run(a))(k.run _))
+  def andThen[C](k: Kleisli[F, B, C])(implicit M: Monad[F]): Kleisli[F, A, C] =
+    kleisli((a: A) => M.flatMap(this.run(a))(k.run _))
 
   /** alias for andThen. */
-  def >=>[C](k: Kleisli[F, B, C])(implicit b: Monad[F]): Kleisli[F, A, C] = this andThen k
+  def >=>[C](k: Kleisli[F, B, C])(implicit M: Monad[F]): Kleisli[F, A, C] = this andThen k
 
-  def >==>[C](f: B => F[C])(implicit b: Monad[F]) = this andThen kleisli(f)
+  def >==>[C](f: B => F[C])(implicit ev: Monad[F]) = this andThen kleisli(f)
 
   /**
    * `compose` two Kleisli's.
    */
-  def compose[C](k: Kleisli[F, C, A])(implicit b: Monad[F]): Kleisli[F, C, B] = {
+  def compose[C](k: Kleisli[F, C, A])(implicit ev: Monad[F]): Kleisli[F, C, B] = {
     k >=> this
   }
 
-  def <=<[C](k: Kleisli[F, C, A])(implicit b: Monad[F]): Kleisli[F, C, B] = this compose k
+  def <=<[C](k: Kleisli[F, C, A])(implicit ev: Monad[F]): Kleisli[F, C, B] = this compose k
 
-  def <==<[C](f: C => F[A])(implicit b: Monad[F]): Kleisli[F, C, B] = this compose kleisli(f)
+  def <==<[C](f: C => F[A])(implicit ev: Monad[F]): Kleisli[F, C, B] = this compose kleisli(f)
 
-  def map[C](f: B => C)(implicit G: Functor[F]): Kleisli[F, A, C] = kleisli {
+  def map[C](f: B => C)(implicit F: Functor[F]): Kleisli[F, A, C] = kleisli {
     (a: A) =>
       val b = this.run(a)
-      G.map(b)(f)
+      F.map(b)(f)
   }
 
-  def mapK[G[_], C](f: F[B] => G[C])(implicit F: Functor[F]): Kleisli[G, A, C] = kleisli {
+  def mapK[G[_], C](f: F[B] => G[C])(implicit ev: Functor[F]): Kleisli[G, A, C] = kleisli {
     a: A =>
       f(this.run(a))
   }
 
-  def flatMap[C](f: B => Kleisli[F, A, C])(implicit G: Monad[F]): Kleisli[F, A, C] = kleisli {
+  def flatMap[C](f: B => Kleisli[F, A, C])(implicit M: Monad[F]): Kleisli[F, A, C] = kleisli {
     (r: A) =>
       val b = this.run(r)
-      G.flatMap(b) { b: B => f(b).run(r) }
+      M.flatMap(b) { b: B => f(b).run(r) }
   }
 
-  def flatMapK[C](f: B => F[C])(implicit F: Monad[F]): Kleisli[F, A, C] =
-    kleisli(a => F.flatMap(run(a))(f))
+  def flatMapK[C](f: B => F[C])(implicit M: Monad[F]): Kleisli[F, A, C] =
+    kleisli(a => M.flatMap(run(a))(f))
 
   def local[AA](f: AA => A): Kleisli[F, AA, B] = kleisli(f andThen run)
 }
