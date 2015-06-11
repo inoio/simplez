@@ -11,3 +11,4 @@ IDE
 Works with eclipse, does not work with IntelliJ
 
 [![Build Status](https://travis-ci.org/inoio/simplez.svg?branch=master)](https://travis-ci.org/inoio/simplez)
+[![Coverage Status](https://coveralls.io/repos/inoio/simplez/badge.svg)](https://coveralls.io/r/inoio/simplez)
