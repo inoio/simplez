@@ -1,4 +1,22 @@
-val commonSettings = Seq(
+import scalariform.formatter.preferences._
+
+scalaVersion in ThisBuild  := "2.11.6"
+
+organization in ThisBuild := "inoio"
+
+libraryDependencies in ThisBuild += "com.lihaoyi" % "ammonite-repl" % "0.3.2" % "test" cross CrossVersion.full
+
+scalariformSettings
+
+ScalariformKeys.preferences := ScalariformKeys.preferences.value
+  .setPreference(AlignParameters, true)
+  .setPreference(AlignArguments, true)
+  .setPreference(PlaceScaladocAsterisksBeneathSecondAsterisk, true)
+  .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 60)
+  .setPreference(AlignSingleLineCaseStatements, true)
+
+
+lazy val commonSettings = Seq(
   name := "simplez",
   organization := "inoio",
   version := "1.0.0-SNAPSHOT",
@@ -35,7 +53,7 @@ lazy val main = project.in(file("main"))
   )
 
 
-val exampleDependencies = Seq(
+lazy val exampleDependencies = Seq(
   "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1",
   "org.typelevel" %% "shapeless-scalaz" % "0.3",
    "org.specs2" %% "specs2" % "2.4" % "test"

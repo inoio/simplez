@@ -60,4 +60,18 @@ package object simplez {
       }
   }
 
+  object category {
+    implicit def kleisliCategory[M[_]](implicit M: Monad[M]): Category[Lambda[(A, B) => Kleisli[M, A, B]]] = new Category[Lambda[(A, B) => Kleisli[M, A, B]]] {
+      def id[A]: Kleisli[M, A, A] = Kleisli.kleisli { a => M.pure(a) }
+      def compose[A, B, C](g: Kleisli[M, B, C], f: Kleisli[M, A, B]): Kleisli[M, A, C] = g <=< f
+    }
+
+    implicit def kleisliSemigroup[A, B, S[_]](implicit S: Semigroup[S[B]]) = new Semigroup[Kleisli[S, A, B]] {
+      def append(a: Kleisli[S, A, B], b: => Kleisli[S, A, B]): Kleisli[S, A, B] = Kleisli.kleisli { x =>
+        S.append(a.run(x), b.run(x))
+      }
+    }
+
+  }
+
 }

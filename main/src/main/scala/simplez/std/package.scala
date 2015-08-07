@@ -97,6 +97,13 @@ package object std {
     }
   }
 
+  implicit def mapInstances[A, B](implicit S: Semigroup[B]) = new Semigroup[Map[A, B]] {
+    def append(a: Map[A, B], b: => Map[A, B]) = {
+      val bInst = b
+      bInst.foldLeft(a) { case (res, (k, v)) => res + (k -> a.get(k).map(v2 => S.append(v, v2)).getOrElse(v)) }
+    }
+  }
+
   object future {
     implicit def futureInstance(implicit ec: ExecutionContext) = new Monad[Future] {
       override def flatMap[A, B](F: Future[A])(f: (A) => Future[B]): Future[B] = F.flatMap(f)
