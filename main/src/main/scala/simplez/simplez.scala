@@ -4,7 +4,6 @@ import scala.Left
 import scala.Right
 import scala.language.higherKinds
 import scala.language.implicitConversions
-
 import std.list.listInstance0
 import std.option.optionInstances
 
@@ -128,6 +127,8 @@ trait Functor[F[_]] {
   def as[A, B](fa: F[A])(b: => B): F[B] = map(fa)(_ => b)
 
   def void[A](fa: F[A]): F[Unit] = as(fa)(())
+
+  def lift[A, B](f: A => B): F[A] => F[B] = fa => map(fa)(f)
 }
 
 object Functor {
@@ -824,7 +825,52 @@ sealed trait CValidation[A, B] {
       case CRight(good) => f(good)
     }
   }
+}
 
+case class Lens[S, A](get: S => A, set: (S, A) => S) {
+  self =>
+  def modify(f: A => A): S => S = s => set(s, f(get(s)))
+  def modifyF[F[_]: Functor](f: A => F[A])(s: S): F[S] = {
+    val fa: F[A] = f(get(s))
+    Functor[F].map(fa)(a => set(s, a))
+  }
+
+  def composeLens[B](other: Lens[A, B]): Lens[S, B] = {
+    val newGet: S => B = s => other.get(self.get(s))
+    val newSet: (S, B) => S = (s, b) => {
+      val oldA = self.get(s)
+      val newA = other.set(oldA, b)
+      val newS = self.set(s, newA)
+      newS
+    }
+    Lens(newGet, newSet)
+  }
+
+  def asOptional: Optional[S, A] = Optional(s => Some(get(s)), set)
+}
+
+case class Optional[S, A](getOption: S => Option[A], set: (S, A) => S) {
+  self =>
+  def modify(f: A => A): S => S = { s =>
+    val newAOpt = getOption(s).map(f)
+    newAOpt.map(a => set(s, a)).getOrElse(s)
+  }
+
+  def modifyF[F[_]: Applicative](f: A => F[A])(s: S): F[S] = {
+    getOption(s) match {
+      case Some(a) => Applicative[F].map(f(a))(a => set(s, a))
+      case None => Applicative[F].pure(s)
+    }
+  }
+
+  def composeOptional[B](other: Optional[A, B]): Optional[S, B] = {
+    val newGetOption: S => Option[B] = s => self.getOption(s) flatMap other.getOption
+    val newSet: (S, B) => S = (s, b) => self.modify { a => other.set(a, b) }(s)
+
+    Optional(newGetOption, newSet)
+  }
+
+  def composeLens[B](other: Lens[A, B]) = composeOptional(other.asOptional)
 }
 
 object CValidation {
@@ -849,4 +895,25 @@ final case class CLeft[A, B](run: A) extends CValidation[A, B]
 final case class CRight[A, B](run: B) extends CValidation[A, B]
 
 case class Const[M, A](m: M)
+
+case class NonEmptyList[A](h: A, t: List[A]) {
+  self =>
+  def ++(other: NonEmptyList[A]): NonEmptyList[A] = NonEmptyList(h, (t :+ other.h) ++ other.t)
+  def head: A = h
+  def tail: List[A] = t
+
+  def map[B](f: A => B): NonEmptyList[B] = NonEmptyList(f(h), t map f)
+
+  def flatMap[B](f: A => NonEmptyList[B]): NonEmptyList[B] = {
+    t.foldLeft(f(h)) { case (res, a) => res ++ f(a) }
+  }
+  def flatten[B](implicit ev: A <:< NonEmptyList[B]): NonEmptyList[B] = {
+    flatMap { x => ev(x) }
+  }
+  def list = h :: t
+
+  def sortBy[B](f: A => B)(implicit O: Ordering[B]): NonEmptyList[A] = (list sortBy f: @unchecked) match {
+    case sh :: st => NonEmptyList(sh, st)
+  }
+}
 
