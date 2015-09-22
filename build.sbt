@@ -1,10 +1,8 @@
 import scalariform.formatter.preferences._
 
-scalaVersion in ThisBuild  := "2.11.6"
+scalaVersion in ThisBuild  := "2.11.7"
 
 organization in ThisBuild := "inoio"
-
-libraryDependencies in ThisBuild += "com.lihaoyi" % "ammonite-repl" % "0.3.2" % "test" cross CrossVersion.full
 
 scalariformSettings
 
@@ -28,10 +26,10 @@ lazy val commonSettings = Seq(
     "-language:postfixOps",
     "-deprecation"
   ),
-  scalaVersion := "2.11.6",
+  scalaVersion := "2.11.7",
   autoCompilerPlugins := true,
   resolvers += "bintray/non" at "http://dl.bintray.com/non/maven",
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.5.4")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.6.3")
 ) ++ scalariformSettings
 
 
@@ -54,9 +52,9 @@ lazy val main = project.in(file("main"))
 
 
 lazy val exampleDependencies = Seq(
-  "com.typesafe.play" % "play-json_2.11" % "2.4.0-M1",
-  "org.typelevel" %% "shapeless-scalaz" % "0.3",
-   "org.specs2" %% "specs2" % "2.4" % "test"
+  "com.typesafe.play" %  "play-json_2.11"   % "2.4.0-M1",
+  "org.typelevel"     %% "shapeless-scalaz" % "0.3",
+  "org.specs2"        %% "specs2" % "2.4"   % "test"
 )
 
 lazy val examples = project.in(file("examples"))
