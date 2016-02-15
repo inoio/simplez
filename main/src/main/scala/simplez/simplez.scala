@@ -767,7 +767,8 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
       // partial functions: expected A => F[B]
       case None => F.pure(None)
       case Some(z) => f(z).run
-    })
+    }
+  )
 
   def isEmpty(implicit F: Functor[F]): F[Boolean] = mapO(_.isEmpty)
 
@@ -803,7 +804,8 @@ final case class ListT[F[A], A](run: F[List[A]]) {
     F.flatMap(self.run) {
       case Nil => F.pure(Nil)
       case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
-    })
+    }
+  )
 
   def headOption(implicit F: Functor[F]): F[Option[A]] = mapO(_.headOption)
 
@@ -826,7 +828,8 @@ case object ListT {
    * @see [[OptionT.liftM]]
    */
   def liftM[G[_], A](a: G[A])(implicit G: Monad[G]): ListT[G, A] = ListT[G, A](
-    G.map(a)(a => List(a)))
+    G.map(a)(a => List(a))
+  )
 }
 
 sealed trait CValidation[A, B] {
