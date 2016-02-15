@@ -539,10 +539,41 @@ object Kleisli {
   }
 }
 
+/**
+ * special functions of a monad reader.
+ */
+trait MonadReader[F[_, _], X] extends Monad[F[X, ?]] {
+  /**
+   * ask for the value of X.
+   *
+   */
+  def ask: F[X, X]
+
+  /**
+   *  compute a value out of X and return a Reader[X,A]
+   */
+  def asks[A](f: X => A): F[X, A] = map(ask)(f)
+
+  def local[A](f: X => X)(fa: F[X, A]): F[X, A]
+}
+
+object MonadReader {
+  def apply[F[_, _], X](implicit F: MonadReader[F, X]) = F
+}
+
 object Reader {
+  /**
+   * lift the function f into a Reader
+   */
   def apply[A, B](f: A => B): Reader[A, B] = Kleisli.kleisli[Id, A, B](f)
 
-  implicit def readerMonad[X]: Monad[Reader[X, ?]] = new Monad[Reader[X, ?]] {
+  implicit def readerMonad[X]: Monad[Reader[X, ?]] = new MonadReader[Reader, X] {
+    override def ask: Reader[X, X] = Reader[X, X] { x => x }
+
+    override def local[A](f: X => X)(fa: Reader[X, A]): Reader[X, A] = {
+      ???
+    }
+
     override def flatMap[A, B](F: Reader[X, A])(f: (A) => Reader[X, B]): Reader[X, B] = Reader { x =>
       val a = F.run(x)
       f(a).run(x)
@@ -736,8 +767,7 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
       // partial functions: expected A => F[B]
       case None => F.pure(None)
       case Some(z) => f(z).run
-    }
-  )
+    })
 
   def isEmpty(implicit F: Functor[F]): F[Boolean] = mapO(_.isEmpty)
 
@@ -773,8 +803,7 @@ final case class ListT[F[A], A](run: F[List[A]]) {
     F.flatMap(self.run) {
       case Nil => F.pure(Nil)
       case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
-    }
-  )
+    })
 
   def headOption(implicit F: Functor[F]): F[Option[A]] = mapO(_.headOption)
 
@@ -797,8 +826,7 @@ case object ListT {
    * @see [[OptionT.liftM]]
    */
   def liftM[G[_], A](a: G[A])(implicit G: Monad[G]): ListT[G, A] = ListT[G, A](
-    G.map(a)(a => List(a))
-  )
+    G.map(a)(a => List(a)))
 }
 
 sealed trait CValidation[A, B] {

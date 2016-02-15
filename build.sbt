@@ -6,13 +6,16 @@ organization in ThisBuild := "inoio"
 
 scalariformSettings
 
-ScalariformKeys.preferences := ScalariformKeys.preferences.value
+scalariformPreferences := scalariformPreferences.value
   .setPreference(AlignParameters, true)
   .setPreference(AlignArguments, true)
   .setPreference(PlaceScaladocAsterisksBeneathSecondAsterisk, true)
   .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 60)
   .setPreference(AlignSingleLineCaseStatements, true)
-
+  .setPreference(DoubleIndentClassDeclaration, true)
+  .setPreference(IndentLocalDefs, true)
+  .setPreference(IndentSpaces, 2)
+  .setPreference(DanglingCloseParenthesis, Prevent)
 
 lazy val commonSettings = Seq(
   name := "simplez",
@@ -29,7 +32,7 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.11.7",
   autoCompilerPlugins := true,
   resolvers += "bintray/non" at "http://dl.bintray.com/non/maven",
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.6.3")
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.7.1")
 ) ++ scalariformSettings
 
 

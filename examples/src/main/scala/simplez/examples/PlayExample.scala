@@ -38,8 +38,7 @@ object PlayExample extends App {
 
   // transform any concrete play applicative instance into a simplez applicative instance
   // using a higher kinded "natural transformation" ~~>
-  implicit def playApplicative2Applicative[F[_]](implicit
-    P: PlayApplicative[F],
+  implicit def playApplicative2Applicative[F[_]](implicit P: PlayApplicative[F],
     ev: PlayApplicative ~~> Applicative): Applicative[F] = {
     ev(P)
   }
@@ -50,8 +49,7 @@ object PlayExample extends App {
     implicit val abcReads: Reads[ABC] = (
       (__ \ "a").read[Int] |@|
       (__ \ "b").read[Int] |@|
-      (__ \ "c").read[Int]
-    ) { ABC.apply _ }
+      (__ \ "c").read[Int]) { ABC.apply _ }
   }
 
 }

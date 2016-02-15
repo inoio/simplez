@@ -1,3 +1,4 @@
+.ensime*
 .cache
 .cache-main
 .cache-tests
