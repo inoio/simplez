@@ -1,12 +1,15 @@
 import scalariform.formatter.preferences._
+import com.typesafe.sbt.SbtScalariform
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 
-scalaVersion in ThisBuild  := "2.11.7"
+
+scalaVersion in ThisBuild  := "2.11.8"
 
 organization in ThisBuild := "inoio"
 
-scalariformSettings
+SbtScalariform.scalariformSettings
 
-scalariformPreferences := scalariformPreferences.value
+ScalariformKeys.preferences := ScalariformKeys.preferences.value
   .setPreference(AlignParameters, true)
   .setPreference(AlignArguments, true)
   .setPreference(PlaceScaladocAsterisksBeneathSecondAsterisk, true)
